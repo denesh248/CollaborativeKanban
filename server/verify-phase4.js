@@ -71,20 +71,20 @@ async function runPhase4Verification() {
     console.log('--- Step 1: Authenticate Seeded Users ---');
     const priyaLogin = await request('/api/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email: 'priya@abctech.com', password: 'Password123!' }),
+      body: JSON.stringify({ email: 'priya@apextech.com', password: 'Password123!' }),
     });
     const priyaToken = priyaLogin.data.token;
     const hyderabadTenantId = priyaLogin.data.user.tenants.find((t) => t.name.includes('Hyderabad')).id;
 
     const arjunLogin = await request('/api/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email: 'arjun@abctech.com', password: 'Password123!' }),
+      body: JSON.stringify({ email: 'arjun@apextech.com', password: 'Password123!' }),
     });
     const arjunToken = arjunLogin.data.token;
 
     const snehaLogin = await request('/api/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email: 'sneha@abctech.com', password: 'Password123!' }),
+      body: JSON.stringify({ email: 'sneha@apextech.com', password: 'Password123!' }),
     });
     const snehaToken = snehaLogin.data.token;
     const bangaloreTenantId = snehaLogin.data.user.tenants[0].id;

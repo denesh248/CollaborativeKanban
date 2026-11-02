@@ -23,8 +23,13 @@ export default function SessionView({ user, token }) {
         
         {/* Branch Selector */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-          <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
-            Branch Workspace:
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200">
+              {user.organizations?.[0]?.name || 'Apex Global Technologies'}
+            </span>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              Branches:
+            </span>
           </div>
 
           <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">

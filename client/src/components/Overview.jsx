@@ -2,7 +2,7 @@ import React from 'react';
 
 export default function Overview() {
   const models = [
-    { name: 'Organization', desc: 'Parent corporate entity (e.g. ABC Technologies)', count: '1 record' },
+    { name: 'Organization', desc: 'Parent corporate entity (e.g. Apex Global Technologies)', count: '3 companies' },
     { name: 'Tenant', desc: 'Independent branch workspace (Hyderabad, Bangalore, Chennai)', count: '3 branches' },
     { name: 'User', desc: 'Employee accounts with bcrypt hashed passwords', count: '5 users' },
     { name: 'Membership', desc: 'RBAC link (Org Admin, Tenant Admin, Member)', count: '6 assignments' },

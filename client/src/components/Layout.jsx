@@ -46,6 +46,9 @@ export default function Layout({ children, user, onLogout }) {
             <div className="flex items-center gap-3 sm:gap-4">
               {/* Organization & User Role Pill */}
               <div className="flex items-center gap-2">
+                <span className="hidden sm:inline-block text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                  {user.organizations?.[0]?.name || 'Apex Global Technologies'}
+                </span>
                 <span className={`text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full border ${getRoleBadgeClass(primaryRole)}`}>
                   {primaryRole.replace('_', ' ')}
                 </span>
