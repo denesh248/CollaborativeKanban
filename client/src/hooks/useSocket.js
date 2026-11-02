@@ -1,12 +1,19 @@
 // client/src/hooks/useSocket.js
 // Custom hook to manage Socket.IO lifecycle, room subscription, and presence
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { connectSocket } from '../services/socket.js';
 
 export function useSocket({ tenantId, token, user, onEvent, onReconnect }) {
   const [socketConnected, setSocketConnected] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState([]);
+
+  // Use refs for callbacks to avoid re-attaching socket listeners on every render
+  const onEventRef = useRef(onEvent);
+  onEventRef.current = onEvent;
+
+  const onReconnectRef = useRef(onReconnect);
+  onReconnectRef.current = onReconnect;
 
   useEffect(() => {
     if (!tenantId || !token || !user?.id) return;
@@ -29,7 +36,7 @@ export function useSocket({ tenantId, token, user, onEvent, onReconnect }) {
     const handleReconnect = () => {
       setSocketConnected(true);
       socket.emit('tenant:join', { tenantId });
-      onReconnect?.();
+      onReconnectRef.current?.();
     };
 
     const handlePresence = ({ onlineUsers: users }) => {
@@ -37,27 +44,23 @@ export function useSocket({ tenantId, token, user, onEvent, onReconnect }) {
     };
 
     const handleTaskCreated = (payload) => {
-      if (payload.actorId === user.id) return;
-      onEvent?.('task:created', payload);
+      onEventRef.current?.('task:created', payload);
     };
 
     const handleTaskUpdated = (payload) => {
-      if (payload.actorId === user.id) return;
-      onEvent?.('task:updated', payload);
+      onEventRef.current?.('task:updated', payload);
     };
 
     const handleTaskMoved = (payload) => {
-      if (payload.actorId === user.id) return;
-      onEvent?.('task:moved', payload);
+      onEventRef.current?.('task:moved', payload);
     };
 
     const handleTaskDeleted = (payload) => {
-      if (payload.actorId === user.id) return;
-      onEvent?.('task:deleted', payload);
+      onEventRef.current?.('task:deleted', payload);
     };
 
     const handleActivityNew = (payload) => {
-      onEvent?.('activity:new', payload);
+      onEventRef.current?.('activity:new', payload);
     };
 
     socket.on('disconnect', handleDisconnect);

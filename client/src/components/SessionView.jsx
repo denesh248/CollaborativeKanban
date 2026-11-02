@@ -2,8 +2,31 @@ import React, { useState } from 'react';
 import KanbanBoard from './kanban/KanbanBoard.jsx';
 
 export default function SessionView({ user, token }) {
-  // Default to the first authorized branch
-  const [activeTenant, setActiveTenant] = useState(user.tenants?.[0] || null);
+  // Restore previously selected branch or default to the first authorized branch
+  const [activeTenant, setActiveTenant] = useState(() => {
+    const savedId = localStorage.getItem('selected_tenant_id');
+    const matched = user.tenants?.find((t) => t.id === savedId);
+    return matched || user.tenants?.[0] || null;
+  });
+
+  // Cross-tab synchronization: when another tab switches branch, switch this tab too
+  React.useEffect(() => {
+    const handleStorage = (e) => {
+      if (e.key === 'selected_tenant_id' && e.newValue) {
+        const matched = user.tenants?.find((t) => t.id === e.newValue);
+        if (matched) {
+          setActiveTenant(matched);
+        }
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, [user.tenants]);
+
+  const handleSelectTenant = (tenant) => {
+    setActiveTenant(tenant);
+    localStorage.setItem('selected_tenant_id', tenant.id);
+  };
 
   const getRoleBadgeClass = (role) => {
     switch (role) {
@@ -39,7 +62,7 @@ export default function SessionView({ user, token }) {
                 return (
                   <button
                     key={tenant.id}
-                    onClick={() => setActiveTenant(tenant)}
+                    onClick={() => handleSelectTenant(tenant)}
                     className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer border shrink-0 ${
                       isActive
                         ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'

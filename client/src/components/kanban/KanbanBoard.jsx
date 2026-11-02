@@ -101,22 +101,26 @@ export default function KanbanBoard({ tenant, token, user }) {
         };
       });
     } else if (event === 'task:moved') {
-      const { task, fromColumnId, toColumnId, newPosition } = payload;
+      const { task, toColumnId, newPosition } = payload;
+      const targetColId = toColumnId || task.columnId;
+
       setActiveBoard((prev) => {
         if (!prev) return prev;
         return {
           ...prev,
           columns: prev.columns.map((col) => {
-            if (col.id === fromColumnId && fromColumnId !== toColumnId) {
-              return { ...col, tasks: (col.tasks || []).filter((t) => t.id !== task.id) };
-            }
-            if (col.id === toColumnId) {
-              const filtered = (col.tasks || []).filter((t) => t.id !== task.id);
-              const list = [...filtered, { ...task, columnId: toColumnId, position: newPosition }];
+            const remainingTasks = (col.tasks || []).filter((t) => t.id !== task.id);
+            if (col.id === targetColId) {
+              const updatedTask = {
+                ...task,
+                columnId: targetColId,
+                position: newPosition !== undefined ? newPosition : task.position,
+              };
+              const list = [...remainingTasks, updatedTask];
               list.sort((a, b) => a.position - b.position);
               return { ...col, tasks: list };
             }
-            return col;
+            return { ...col, tasks: remainingTasks };
           }),
         };
       });

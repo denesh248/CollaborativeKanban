@@ -3,6 +3,7 @@ import Layout from './components/Layout.jsx';
 import Login from './components/Login.jsx';
 import SessionView from './components/SessionView.jsx';
 import { getMeApi } from './services/api.js';
+import { disconnectSocket } from './services/socket.js';
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -21,6 +22,7 @@ export default function App() {
         } catch (error) {
           console.error('Session expired or invalid:', error);
           localStorage.removeItem('auth_token');
+          disconnectSocket();
           setUser(null);
           setToken(null);
         }
@@ -38,6 +40,7 @@ export default function App() {
 
   const handleLogout = () => {
     localStorage.removeItem('auth_token');
+    disconnectSocket();
     setUser(null);
     setToken(null);
   };
