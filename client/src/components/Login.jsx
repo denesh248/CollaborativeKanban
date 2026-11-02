@@ -1,6 +1,16 @@
 import React, { useState } from 'react';
 import { loginApi } from '../services/api.js';
 
+const DEMO_ACCOUNTS = [
+  { name: 'Rahul Sharma', email: 'rahul@apextech.com', role: 'ORG_ADMIN', branch: 'All 5 Branches (Company-Wide)' },
+  { name: 'Priya Patel', email: 'priya@apextech.com', role: 'TENANT_ADMIN', branch: 'Hyderabad Engineering Hub' },
+  { name: 'Arjun Reddy', email: 'arjun@apextech.com', role: 'MEMBER', branch: 'Hyderabad Engineering Hub' },
+  { name: 'Sneha Rao', email: 'sneha@apextech.com', role: 'TENANT_ADMIN', branch: 'Bangalore Cloud Campus' },
+  { name: 'Vikram Das', email: 'vikram@apextech.com', role: 'MEMBER', branch: 'Chennai Delivery Center' },
+  { name: 'Ananya Verma', email: 'ananya@apextech.com', role: 'TENANT_ADMIN', branch: 'Pune AI & Analytics Lab' },
+  { name: 'Rohit Mehta', email: 'rohit@apextech.com', role: 'TENANT_ADMIN', branch: 'Mumbai Fintech Division' },
+];
+
 export default function Login({ onLoginSuccess }) {
   const [email, setEmail] = useState('priya@apextech.com');
   const [password, setPassword] = useState('Password123!');
@@ -17,7 +27,7 @@ export default function Login({ onLoginSuccess }) {
       localStorage.setItem('auth_token', data.token);
       onLoginSuccess(data.user, data.token);
     } catch (err) {
-      setError(err.message || 'Login failed. Please check credentials or ensure backend is running.');
+      setError(err.message || 'Login failed. Please check credentials.');
     } finally {
       setLoading(false);
     }
@@ -31,7 +41,7 @@ export default function Login({ onLoginSuccess }) {
 
   return (
     <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-8 items-start py-4">
-      {/* Login Card */}
+      {/* Login Form Card */}
       <div className="md:col-span-6 bg-white rounded-2xl border border-slate-200/90 shadow-xs p-7 sm:p-8">
         <div className="mb-6">
           <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white font-extrabold text-base flex items-center justify-center mb-4 shadow-xs">
@@ -92,14 +102,14 @@ export default function Login({ onLoginSuccess }) {
         </form>
 
         <div className="mt-6 pt-5 border-t border-slate-100 text-xs text-slate-500">
-          <p className="font-medium text-slate-700">Company-Wide Security Architecture:</p>
+          <p className="font-medium text-slate-700">Branch Security Architecture:</p>
           <p className="mt-1 leading-relaxed text-[11px]">
-            All branches operate under <strong>Apex Global Technologies</strong>. Users can only access the branches their role authorizes. Cross-branch socket and database tampering is blocked with HTTP 403.
+            Users can only access the branches their role authorizes. Cross-branch data queries and socket rooms are blocked by backend middleware.
           </p>
         </div>
       </div>
 
-      {/* Demo Accounts Quick-Select (Categorized by Branch & Role) */}
+      {/* Demo Accounts Quick-Select */}
       <div className="md:col-span-6 space-y-4">
         <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs p-6">
           <div className="text-slate-900 font-bold text-sm mb-1 tracking-tight">
@@ -109,145 +119,38 @@ export default function Login({ onLoginSuccess }) {
             Click any account to prefill credentials and test branch authorization and RBAC roles:
           </p>
 
-          <div className="space-y-2.5 text-xs max-h-[500px] overflow-y-auto pr-1">
-            {/* Org-Wide Administrator */}
-            <div
-              onClick={() => handleSelectDemo('rahul@apextech.com')}
-              className={`p-2.5 rounded-xl border cursor-pointer transition-all ${
-                email === 'rahul@apextech.com'
-                  ? 'border-indigo-600 bg-indigo-50/70 shadow-xs'
-                  : 'border-slate-200/90 hover:border-slate-300 hover:bg-slate-50'
-              }`}
-            >
-              <div className="flex items-center justify-between font-semibold text-slate-800 text-xs">
-                <span>Rahul Sharma</span>
-                <span className="px-2 py-0.5 rounded text-[10px] bg-purple-100 text-purple-700 font-bold">
-                  ORG_ADMIN
-                </span>
-              </div>
-              <div className="text-slate-500 text-[11px] mt-0.5">
-                rahul@apextech.com • All 5 Branches (Company-Wide)
-              </div>
-            </div>
+          <div className="space-y-2 text-xs max-h-[460px] overflow-y-auto pr-1">
+            {DEMO_ACCOUNTS.map((acc) => {
+              const isSelected = email === acc.email;
+              const roleBadgeColor =
+                acc.role === 'ORG_ADMIN'
+                  ? 'bg-purple-100 text-purple-700'
+                  : acc.role === 'TENANT_ADMIN'
+                  ? 'bg-indigo-100 text-indigo-700'
+                  : 'bg-slate-100 text-slate-700';
 
-            {/* Hyderabad Branch */}
-            <div
-              onClick={() => handleSelectDemo('priya@apextech.com')}
-              className={`p-2.5 rounded-xl border cursor-pointer transition-all ${
-                email === 'priya@apextech.com'
-                  ? 'border-indigo-600 bg-indigo-50/70 shadow-xs'
-                  : 'border-slate-200/90 hover:border-slate-300 hover:bg-slate-50'
-              }`}
-            >
-              <div className="flex items-center justify-between font-semibold text-slate-800 text-xs">
-                <span>Priya Patel</span>
-                <span className="px-2 py-0.5 rounded text-[10px] bg-indigo-100 text-indigo-700 font-bold">
-                  TENANT_ADMIN
-                </span>
-              </div>
-              <div className="text-slate-500 text-[11px] mt-0.5">
-                priya@apextech.com • Hyderabad Engineering Hub
-              </div>
-            </div>
-
-            <div
-              onClick={() => handleSelectDemo('arjun@apextech.com')}
-              className={`p-2.5 rounded-xl border cursor-pointer transition-all ${
-                email === 'arjun@apextech.com'
-                  ? 'border-indigo-600 bg-indigo-50/70 shadow-xs'
-                  : 'border-slate-200/90 hover:border-slate-300 hover:bg-slate-50'
-              }`}
-            >
-              <div className="flex items-center justify-between font-semibold text-slate-800 text-xs">
-                <span>Arjun Reddy</span>
-                <span className="px-2 py-0.5 rounded text-[10px] bg-slate-100 text-slate-700 font-bold">
-                  MEMBER
-                </span>
-              </div>
-              <div className="text-slate-500 text-[11px] mt-0.5">
-                arjun@apextech.com • Hyderabad Engineering Hub
-              </div>
-            </div>
-
-            {/* Bangalore Branch */}
-            <div
-              onClick={() => handleSelectDemo('sneha@apextech.com')}
-              className={`p-2.5 rounded-xl border cursor-pointer transition-all ${
-                email === 'sneha@apextech.com'
-                  ? 'border-indigo-600 bg-indigo-50/70 shadow-xs'
-                  : 'border-slate-200/90 hover:border-slate-300 hover:bg-slate-50'
-              }`}
-            >
-              <div className="flex items-center justify-between font-semibold text-slate-800 text-xs">
-                <span>Sneha Rao</span>
-                <span className="px-2 py-0.5 rounded text-[10px] bg-indigo-100 text-indigo-700 font-bold">
-                  TENANT_ADMIN
-                </span>
-              </div>
-              <div className="text-slate-500 text-[11px] mt-0.5">
-                sneha@apextech.com • Bangalore Cloud Campus
-              </div>
-            </div>
-
-            {/* Chennai Branch */}
-            <div
-              onClick={() => handleSelectDemo('vikram@apextech.com')}
-              className={`p-2.5 rounded-xl border cursor-pointer transition-all ${
-                email === 'vikram@apextech.com'
-                  ? 'border-indigo-600 bg-indigo-50/70 shadow-xs'
-                  : 'border-slate-200/90 hover:border-slate-300 hover:bg-slate-50'
-              }`}
-            >
-              <div className="flex items-center justify-between font-semibold text-slate-800 text-xs">
-                <span>Vikram Das</span>
-                <span className="px-2 py-0.5 rounded text-[10px] bg-slate-100 text-slate-700 font-bold">
-                  MEMBER
-                </span>
-              </div>
-              <div className="text-slate-500 text-[11px] mt-0.5">
-                vikram@apextech.com • Chennai Delivery Center
-              </div>
-            </div>
-
-            {/* Pune Branch */}
-            <div
-              onClick={() => handleSelectDemo('ananya@apextech.com')}
-              className={`p-2.5 rounded-xl border cursor-pointer transition-all ${
-                email === 'ananya@apextech.com'
-                  ? 'border-indigo-600 bg-indigo-50/70 shadow-xs'
-                  : 'border-slate-200/90 hover:border-slate-300 hover:bg-slate-50'
-              }`}
-            >
-              <div className="flex items-center justify-between font-semibold text-slate-800 text-xs">
-                <span>Ananya Verma</span>
-                <span className="px-2 py-0.5 rounded text-[10px] bg-indigo-100 text-indigo-700 font-bold">
-                  TENANT_ADMIN
-                </span>
-              </div>
-              <div className="text-slate-500 text-[11px] mt-0.5">
-                ananya@apextech.com • Pune AI & Analytics Lab
-              </div>
-            </div>
-
-            {/* Mumbai Branch */}
-            <div
-              onClick={() => handleSelectDemo('rohit@apextech.com')}
-              className={`p-2.5 rounded-xl border cursor-pointer transition-all ${
-                email === 'rohit@apextech.com'
-                  ? 'border-indigo-600 bg-indigo-50/70 shadow-xs'
-                  : 'border-slate-200/90 hover:border-slate-300 hover:bg-slate-50'
-              }`}
-            >
-              <div className="flex items-center justify-between font-semibold text-slate-800 text-xs">
-                <span>Rohit Mehta</span>
-                <span className="px-2 py-0.5 rounded text-[10px] bg-indigo-100 text-indigo-700 font-bold">
-                  TENANT_ADMIN
-                </span>
-              </div>
-              <div className="text-slate-500 text-[11px] mt-0.5">
-                rohit@apextech.com • Mumbai Fintech Division
-              </div>
-            </div>
+              return (
+                <div
+                  key={acc.email}
+                  onClick={() => handleSelectDemo(acc.email)}
+                  className={`p-2.5 rounded-xl border cursor-pointer transition-all ${
+                    isSelected
+                      ? 'border-indigo-600 bg-indigo-50/70 shadow-xs'
+                      : 'border-slate-200/90 hover:border-slate-300 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center justify-between font-semibold text-slate-800 text-xs">
+                    <span>{acc.name}</span>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${roleBadgeColor}`}>
+                      {acc.role}
+                    </span>
+                  </div>
+                  <div className="text-slate-500 text-[11px] mt-0.5">
+                    {acc.email} • {acc.branch}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
