@@ -4,10 +4,83 @@ import { prisma } from '../lib/prisma.js';
 import { JWT_SECRET } from '../config/environment.js';
 
 // ---------------------------------------------------------------------
-// Helper: Helper function to generate a standard JWT token
+// Helper: Generate a standard JWT token
 // ---------------------------------------------------------------------
 const generateToken = (userId) => {
   return jwt.sign({ userId }, JWT_SECRET, { expiresIn: '7d' });
+};
+
+// ---------------------------------------------------------------------
+// Helper: Format organizations and accessible branches consistently
+// ---------------------------------------------------------------------
+const formatUserSessionData = async (user) => {
+  const organizations = [];
+  const tenants = [];
+  const orgMap = new Map();
+  const tenantMap = new Map();
+
+  // 1. Process explicit memberships
+  user.memberships.forEach((m) => {
+    // Collect unique organizations
+    if (m.organization && !orgMap.has(m.organization.id)) {
+      orgMap.set(m.organization.id, true);
+      organizations.push({
+        id: m.organization.id,
+        name: m.organization.name,
+        role: m.role,
+      });
+    }
+
+    // Collect explicitly assigned branches
+    if (m.tenant && !tenantMap.has(m.tenant.id)) {
+      tenantMap.set(m.tenant.id, true);
+      tenants.push({
+        id: m.tenant.id,
+        name: m.tenant.name,
+        organizationId: m.organizationId,
+        role: m.role,
+      });
+    }
+  });
+
+  // 2. For Org Admins: Grant access to all branches within their organization
+  const orgAdminOrgIds = user.memberships
+    .filter((m) => m.role === 'ORG_ADMIN')
+    .map((m) => m.organizationId);
+
+  if (orgAdminOrgIds.length > 0) {
+    const allOrgTenants = await prisma.tenant.findMany({
+      where: { organizationId: { in: orgAdminOrgIds } },
+    });
+
+    allOrgTenants.forEach((t) => {
+      if (!tenantMap.has(t.id)) {
+        tenantMap.set(t.id, true);
+        tenants.push({
+          id: t.id,
+          name: t.name,
+          organizationId: t.organizationId,
+          role: 'ORG_ADMIN',
+        });
+      }
+    });
+  }
+
+  return {
+    id: user.id,
+    email: user.email,
+    fullName: user.fullName,
+    organizations,
+    tenants,
+    memberships: user.memberships.map((m) => ({
+      id: m.id,
+      role: m.role,
+      organizationId: m.organizationId,
+      organizationName: m.organization?.name,
+      tenantId: m.tenantId,
+      tenantName: m.tenant?.name || 'All Branches (Org-wide)',
+    })),
+  };
 };
 
 // ---------------------------------------------------------------------
@@ -44,57 +117,14 @@ export const login = async (req, res) => {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
 
-    // Format accessible tenants and organizations for frontend
-    const organizations = [];
-    const tenants = [];
-    const orgMap = new Map();
-
-    user.memberships.forEach((m) => {
-      // Collect unique organizations
-      if (m.organization && !orgMap.has(m.organization.id)) {
-        orgMap.set(m.organization.id, true);
-        organizations.push({
-          id: m.organization.id,
-          name: m.organization.name,
-          role: m.role,
-        });
-      }
-
-      // Collect accessible tenants/branches
-      if (m.tenant) {
-        tenants.push({
-          id: m.tenant.id,
-          name: m.tenant.name,
-          organizationId: m.organizationId,
-          role: m.role,
-        });
-      } else if (m.role === 'ORG_ADMIN') {
-        // If Org Admin at organization level, they can see all branches in that org
-        // (Handled also when fetching org branches)
-      }
-    });
-
-    // Generate JWT token
+    // Format user session data
+    const userData = await formatUserSessionData(user);
     const token = generateToken(user.id);
 
     return res.status(200).json({
       message: 'Login successful',
       token,
-      user: {
-        id: user.id,
-        email: user.email,
-        fullName: user.fullName,
-        organizations,
-        tenants,
-        memberships: user.memberships.map((m) => ({
-          id: m.id,
-          role: m.role,
-          organizationId: m.organizationId,
-          organizationName: m.organization?.name,
-          tenantId: m.tenantId,
-          tenantName: m.tenant?.name || 'All Branches (Org-wide)',
-        })),
-      },
+      user: userData,
     });
   } catch (error) {
     console.error('Login error:', error);
@@ -123,47 +153,10 @@ export const getMe = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Format organizations and branches
-    const organizations = [];
-    const tenants = [];
-    const orgMap = new Map();
-
-    user.memberships.forEach((m) => {
-      if (m.organization && !orgMap.has(m.organization.id)) {
-        orgMap.set(m.organization.id, true);
-        organizations.push({
-          id: m.organization.id,
-          name: m.organization.name,
-          role: m.role,
-        });
-      }
-
-      if (m.tenant) {
-        tenants.push({
-          id: m.tenant.id,
-          name: m.tenant.name,
-          organizationId: m.organizationId,
-          role: m.role,
-        });
-      }
-    });
+    const userData = await formatUserSessionData(user);
 
     return res.status(200).json({
-      user: {
-        id: user.id,
-        email: user.email,
-        fullName: user.fullName,
-        organizations,
-        tenants,
-        memberships: user.memberships.map((m) => ({
-          id: m.id,
-          role: m.role,
-          organizationId: m.organizationId,
-          organizationName: m.organization?.name,
-          tenantId: m.tenantId,
-          tenantName: m.tenant?.name || 'All Branches (Org-wide)',
-        })),
-      },
+      user: userData,
     });
   } catch (error) {
     console.error('Get profile error:', error);
@@ -172,7 +165,7 @@ export const getMe = async (req, res) => {
 };
 
 // ---------------------------------------------------------------------
-// 3. Simple registration (creates a standard MEMBER account)
+// 3. Simple registration (creates a standard user without privileged roles)
 // ---------------------------------------------------------------------
 export const register = async (req, res) => {
   try {
@@ -198,7 +191,7 @@ export const register = async (req, res) => {
     // Hash password
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // Create user
+    // Create user without any assigned roles (admins must assign memberships)
     const newUser = await prisma.user.create({
       data: {
         email: email.toLowerCase().trim(),
@@ -218,6 +211,7 @@ export const register = async (req, res) => {
         fullName: newUser.fullName,
         organizations: [],
         tenants: [],
+        memberships: [],
       },
     });
   } catch (error) {
