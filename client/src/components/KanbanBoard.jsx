@@ -49,35 +49,46 @@ const calculateNewPosition = (tasks, targetIndex) => {
   return Math.round((prevPos + nextPos) / 2);
 };
 
-// Component: Task Card Content (Used by both SortableCard and DragOverlay)
+// Priority badge helper
+const getPriorityBadgeClass = (priority) => {
+  switch (priority) {
+    case 'URGENT':
+      return 'bg-rose-50 text-rose-700 border-rose-200';
+    case 'HIGH':
+      return 'bg-amber-50 text-amber-700 border-amber-200';
+    case 'LOW':
+      return 'bg-slate-100 text-slate-600 border-slate-200';
+    default:
+      return 'bg-sky-50 text-sky-700 border-sky-200';
+  }
+};
+
+// Component: Task Card View (Used by both SortableCard and DragOverlay)
 function TaskCardView({ task, isOverlay = false, onEdit, onDelete, onQuickMove, columns = [] }) {
+  const assigneeName = task.assignee?.fullName || 'Unassigned';
+  const assigneeInitial = assigneeName.charAt(0).toUpperCase();
+
   return (
     <div
-      className={`space-y-2.5 ${
+      className={`space-y-3 ${
         isOverlay
-          ? 'bg-white rounded-xl border-2 border-indigo-600 p-3.5 shadow-2xl rotate-1 cursor-grabbing'
+          ? 'bg-white rounded-xl border-2 border-indigo-500 p-4 shadow-xl rotate-1 cursor-grabbing'
           : ''
       }`}
     >
-      {/* Priority and OCC Version */}
+      {/* Card Header: Priority & OCC Version Badge */}
       <div className="flex items-center justify-between text-xs">
         <span
-          className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-            task.priority === 'URGENT'
-              ? 'bg-red-100 text-red-800'
-              : task.priority === 'HIGH'
-              ? 'bg-amber-100 text-amber-800'
-              : task.priority === 'LOW'
-              ? 'bg-slate-100 text-slate-700'
-              : 'bg-blue-100 text-blue-800'
-          }`}
+          className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${getPriorityBadgeClass(
+            task.priority
+          )}`}
         >
-          {task.priority}
+          {task.priority || 'MEDIUM'}
         </span>
 
         <span
-          className="text-[10px] font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200"
-          title="OCC Concurrency Version Counter"
+          className="text-[10px] font-mono text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200/80"
+          title="Optimistic Concurrency Control (OCC) Version"
         >
           v{task.version}
         </span>
@@ -85,7 +96,9 @@ function TaskCardView({ task, isOverlay = false, onEdit, onDelete, onQuickMove, 
 
       {/* Title & Description */}
       <div>
-        <h4 className="font-semibold text-slate-900 text-sm leading-snug">{task.title}</h4>
+        <h4 className="font-semibold text-slate-900 text-sm leading-snug tracking-tight">
+          {task.title}
+        </h4>
         {task.description && (
           <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">
             {task.description}
@@ -94,24 +107,33 @@ function TaskCardView({ task, isOverlay = false, onEdit, onDelete, onQuickMove, 
       </div>
 
       {/* Card Footer: Assignee & Action Buttons */}
-      <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
-        <div className="text-slate-600 text-[11px] font-medium truncate max-w-[120px]">
-          {task.assignee?.fullName ? task.assignee.fullName : 'Unassigned'}
+      <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
+        {/* Assignee Avatar & Name */}
+        <div className="flex items-center gap-1.5 min-w-0">
+          <div className="w-5 h-5 rounded-full bg-slate-200 text-slate-700 text-[10px] font-bold flex items-center justify-center shrink-0">
+            {assigneeInitial}
+          </div>
+          <span className="text-slate-600 text-xs truncate max-w-[110px]" title={assigneeName}>
+            {assigneeName}
+          </span>
         </div>
 
+        {/* Action Buttons */}
         {!isOverlay && (
           <div className="flex items-center gap-1">
             <button
+              type="button"
               onPointerDown={(e) => e.stopPropagation()}
               onClick={() => onEdit?.(task)}
-              className="px-1.5 py-0.5 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded cursor-pointer"
+              className="px-2 py-0.5 text-xs text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors cursor-pointer font-medium"
             >
               Edit
             </button>
             <button
+              type="button"
               onPointerDown={(e) => e.stopPropagation()}
               onClick={() => onDelete?.(task.id)}
-              className="px-1.5 py-0.5 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 rounded cursor-pointer"
+              className="px-2 py-0.5 text-xs text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors cursor-pointer font-medium"
             >
               Delete
             </button>
@@ -119,14 +141,14 @@ function TaskCardView({ task, isOverlay = false, onEdit, onDelete, onQuickMove, 
         )}
       </div>
 
-      {/* Quick Move Dropdown (Accessible Fallback) */}
-      {!isOverlay && columns.length > 0 && (
+      {/* Accessible Quick Move */}
+      {!isOverlay && columns.length > 1 && (
         <div className="pt-1 flex items-center gap-1.5" onPointerDown={(e) => e.stopPropagation()}>
-          <span className="text-[10px] text-slate-400">Move:</span>
+          <span className="text-[10px] text-slate-400 font-medium">Move:</span>
           <select
             value={task.columnId}
             onChange={(e) => onQuickMove?.(task, e.target.value)}
-            className="w-full text-[11px] bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5 text-slate-700 cursor-pointer"
+            className="w-full text-[11px] bg-slate-50 border border-slate-200 rounded-lg px-2 py-0.5 text-slate-700 cursor-pointer focus:outline-none focus:border-indigo-400"
           >
             {columns.map((c) => (
               <option key={c.id} value={c.id}>
@@ -149,7 +171,7 @@ function SortableTaskCard({ task, onEdit, onDelete, onQuickMove, columns }) {
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.3 : 1,
+    opacity: isDragging ? 0.35 : 1,
   };
 
   return (
@@ -158,8 +180,8 @@ function SortableTaskCard({ task, onEdit, onDelete, onQuickMove, columns }) {
       style={style}
       {...attributes}
       {...listeners}
-      className={`bg-white rounded-xl border p-3.5 shadow-xs transition-all cursor-grab active:cursor-grabbing select-none ${
-        isDragging ? 'border-dashed border-indigo-400 bg-indigo-50/20' : 'border-slate-200'
+      className={`bg-white rounded-xl border p-3.5 shadow-xs transition-all cursor-grab active:cursor-grabbing select-none hover:border-slate-300 hover:shadow-sm ${
+        isDragging ? 'border-dashed border-indigo-400 bg-indigo-50/20' : 'border-slate-200/90'
       }`}
     >
       <TaskCardView
@@ -183,41 +205,44 @@ function DroppableColumn({
   onDeleteTask,
   onQuickMoveTask,
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: column.id });
+  const { setNodeRef, isOver } = useDroppable({
+    id: column.id,
+  });
 
   return (
     <div
       ref={setNodeRef}
-      className={`rounded-2xl border p-4 flex flex-col max-h-[750px] transition-colors ${
+      className={`rounded-2xl border p-3.5 flex flex-col min-h-[500px] transition-colors ${
         isOver
-          ? 'ring-2 ring-indigo-500 bg-indigo-50/50 border-indigo-300'
-          : 'bg-slate-100/80 border-slate-200/80'
+          ? 'bg-indigo-50/50 border-indigo-300 ring-2 ring-indigo-500/10'
+          : 'bg-slate-100/70 border-slate-200/80'
       }`}
     >
       {/* Column Header */}
-      <div className="flex items-center justify-between mb-3 px-1">
+      <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-200/70">
         <div className="flex items-center gap-2">
           <h3 className="font-bold text-slate-800 text-sm tracking-tight">{column.name}</h3>
-          <span className="w-5 h-5 rounded-full bg-white text-slate-600 text-[11px] font-bold flex items-center justify-center shadow-xs">
+          <span className="w-5 h-5 rounded-full bg-white text-slate-600 text-[11px] font-bold flex items-center justify-center shadow-xs border border-slate-200/60">
             {column.tasks?.length || 0}
           </span>
         </div>
 
         <button
+          type="button"
           onClick={() => onOpenNewTask(column.id)}
-          className="text-xs px-2 py-0.5 rounded bg-white hover:bg-slate-200 text-slate-700 font-semibold cursor-pointer border border-slate-200"
+          className="text-xs px-2.5 py-1 rounded-lg bg-white hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 text-slate-700 font-semibold cursor-pointer border border-slate-200 shadow-xs transition-colors"
           title={`Add task to ${column.name}`}
         >
           + Add
         </button>
       </div>
 
-      {/* Task Cards List (Sortable) */}
+      {/* Sortable Task Cards List */}
       <SortableContext
         items={column.tasks ? column.tasks.map((t) => t.id) : []}
         strategy={verticalListSortingStrategy}
       >
-        <div className="space-y-3 overflow-y-auto pr-1 flex-1 min-h-[120px]">
+        <div className="space-y-3 overflow-y-auto pr-1 flex-1 min-h-[140px]">
           {column.tasks && column.tasks.length > 0 ? (
             column.tasks.map((task) => (
               <SortableTaskCard
@@ -230,7 +255,7 @@ function DroppableColumn({
               />
             ))
           ) : (
-            <div className="py-8 text-center text-xs text-slate-400 italic border-2 border-dashed border-slate-200 rounded-xl flex items-center justify-center h-full">
+            <div className="py-12 text-center text-xs text-slate-400 border-2 border-dashed border-slate-200/80 rounded-xl flex items-center justify-center h-full">
               Drop tasks here
             </div>
           )}
@@ -240,7 +265,7 @@ function DroppableColumn({
   );
 }
 
-// Main Component: KanbanBoard with Real-Time Socket.IO Synchronization
+// Main Component: KanbanBoard
 export default function KanbanBoard({ tenant, token, user }) {
   const [boards, setBoards] = useState([]);
   const [activeBoard, setActiveBoard] = useState(null);
@@ -271,21 +296,23 @@ export default function KanbanBoard({ tenant, token, user }) {
   const [editPriority, setEditPriority] = useState('MEDIUM');
   const [editAssigneeId, setEditAssigneeId] = useState('');
 
-  // DnD Sensors: 5px distance prevents accidental drag when clicking buttons
+  // Sensors: 5px distance prevents accidental drag when clicking buttons
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  // 1. Initial Load of Tenant Data
+  // 1. Initial Load of Tenant Data (Only shows full loading spinner on initial mount or branch change)
   useEffect(() => {
     if (tenant?.id && token) {
-      loadTenantData();
+      loadTenantData(true);
     }
   }, [tenant?.id, token]);
 
-  const loadTenantData = async () => {
-    setLoading(true);
+  const loadTenantData = async (showLoadingSpinner = false) => {
+    if (showLoadingSpinner) {
+      setLoading(true);
+    }
     setError(null);
     setConflictError(null);
 
@@ -309,7 +336,9 @@ export default function KanbanBoard({ tenant, token, user }) {
     } catch (err) {
       setError(err.message || 'Failed to load branch workspace');
     } finally {
-      setLoading(false);
+      if (showLoadingSpinner) {
+        setLoading(false);
+      }
     }
   };
 
@@ -331,8 +360,8 @@ export default function KanbanBoard({ tenant, token, user }) {
     const handleReconnect = () => {
       setSocketConnected(true);
       socket.emit('tenant:join', { tenantId: tenant.id });
-      // Re-fetch board to reconcile missed mutations while disconnected
-      loadTenantData();
+      // Background silent reconcile without full page wipe
+      loadTenantData(false);
     };
 
     if (socket.connected) {
@@ -344,12 +373,12 @@ export default function KanbanBoard({ tenant, token, user }) {
     socket.on('disconnect', handleDisconnect);
     socket.on('reconnect', handleReconnect);
 
-    // Presence updates
+    // Presence update
     socket.on('presence:update', ({ onlineUsers }) => {
       setOnlineUsers(onlineUsers || []);
     });
 
-    // Real-Time Task Mutation Listeners (Ignore local actor to prevent duplicate updates)
+    // Real-Time Task Mutation Listeners (Ignore local actor to prevent redundant state recalculation)
     socket.on('task:created', ({ task, actorId }) => {
       if (actorId === user.id) return;
       setActiveBoard((prev) => {
@@ -358,8 +387,8 @@ export default function KanbanBoard({ tenant, token, user }) {
           ...prev,
           columns: prev.columns.map((col) => {
             if (col.id === task.columnId) {
-              if (col.tasks.some((t) => t.id === task.id)) return col;
-              return { ...col, tasks: [...col.tasks, task] };
+              if (col.tasks?.some((t) => t.id === task.id)) return col;
+              return { ...col, tasks: [...(col.tasks || []), task] };
             }
             return col;
           }),
@@ -375,7 +404,7 @@ export default function KanbanBoard({ tenant, token, user }) {
           ...prev,
           columns: prev.columns.map((col) => ({
             ...col,
-            tasks: col.tasks.map((t) => (t.id === task.id ? { ...t, ...task } : t)),
+            tasks: (col.tasks || []).map((t) => (t.id === task.id ? { ...t, ...task } : t)),
           })),
         };
       });
@@ -391,11 +420,11 @@ export default function KanbanBoard({ tenant, token, user }) {
             if (col.id === fromColumnId && fromColumnId !== toColumnId) {
               return {
                 ...col,
-                tasks: col.tasks.filter((t) => t.id !== task.id),
+                tasks: (col.tasks || []).filter((t) => t.id !== task.id),
               };
             }
             if (col.id === toColumnId) {
-              const filtered = col.tasks.filter((t) => t.id !== task.id);
+              const filtered = (col.tasks || []).filter((t) => t.id !== task.id);
               const updatedList = [
                 ...filtered,
                 { ...task, columnId: toColumnId, position: newPosition },
@@ -420,13 +449,13 @@ export default function KanbanBoard({ tenant, token, user }) {
           ...prev,
           columns: prev.columns.map((col) => ({
             ...col,
-            tasks: col.tasks.filter((t) => t.id !== taskId),
+            tasks: (col.tasks || []).filter((t) => t.id !== taskId),
           })),
         };
       });
     });
 
-    // Real-Time Activity Log Stream Listener
+    // Real-Time Activity Log Stream
     socket.on('activity:new', ({ log }) => {
       if (!log) return;
       setActivityLogs((prev) => {
@@ -435,11 +464,11 @@ export default function KanbanBoard({ tenant, token, user }) {
       });
     });
 
-    // Board & Column Structure changes
-    socket.on('board:updated', () => loadTenantData());
-    socket.on('column:created', () => loadTenantData());
-    socket.on('column:updated', () => loadTenantData());
-    socket.on('column:deleted', () => loadTenantData());
+    // Silent background updates for structure changes
+    socket.on('board:updated', () => loadTenantData(false));
+    socket.on('column:created', () => loadTenantData(false));
+    socket.on('column:updated', () => loadTenantData(false));
+    socket.on('column:deleted', () => loadTenantData(false));
 
     return () => {
       socket.emit('tenant:leave', { tenantId: tenant.id });
@@ -592,6 +621,7 @@ export default function KanbanBoard({ tenant, token, user }) {
         token
       );
 
+      // Silently patch the moved task version in local state without any full board unmounting
       setActiveBoard((prev) => ({
         ...prev,
         columns: prev.columns.map((col) => {
@@ -605,8 +635,7 @@ export default function KanbanBoard({ tenant, token, user }) {
         }),
       }));
 
-      const logs = await getActivityLogsApi(tenant.id, token);
-      setActivityLogs(logs);
+      getActivityLogsApi(tenant.id, token).then(setActivityLogs).catch(() => {});
     } catch (err) {
       if (err.status === 409) {
         setConflictError({
@@ -616,7 +645,7 @@ export default function KanbanBoard({ tenant, token, user }) {
       } else {
         setError(err.message || 'Failed to persist task movement');
       }
-      await loadTenantData();
+      loadTenantData(false); // Background silent sync
     }
   };
 
@@ -625,7 +654,7 @@ export default function KanbanBoard({ tenant, token, user }) {
     setConflictError(null);
 
     try {
-      await moveTaskApi(
+      const movedTask = await moveTaskApi(
         tenant.id,
         task.id,
         {
@@ -635,14 +664,35 @@ export default function KanbanBoard({ tenant, token, user }) {
         },
         token
       );
-      await loadTenantData();
+
+      // Directly update local state without reloading the whole screen
+      setActiveBoard((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          columns: prev.columns.map((col) => {
+            if (col.id === task.columnId) {
+              return { ...col, tasks: (col.tasks || []).filter((t) => t.id !== task.id) };
+            }
+            if (col.id === destColumnId) {
+              return {
+                ...col,
+                tasks: [...(col.tasks || []).filter((t) => t.id !== task.id), movedTask],
+              };
+            }
+            return col;
+          }),
+        };
+      });
+
+      getActivityLogsApi(tenant.id, token).then(setActivityLogs).catch(() => {});
     } catch (err) {
       if (err.status === 409) {
         setConflictError({
           message: 'Conflict (HTTP 409): Another user moved or updated this task concurrently.',
           currentTask: err.currentTask,
         });
-        await loadTenantData();
+        loadTenantData(false);
       } else {
         setError(err.message || 'Error moving task');
       }
@@ -654,12 +704,12 @@ export default function KanbanBoard({ tenant, token, user }) {
     if (!newTaskTitle.trim() || !newTaskColumnId) return;
 
     try {
-      await createTaskApi(
+      const res = await createTaskApi(
         tenant.id,
         activeBoard.id,
         {
-          title: newTaskTitle,
-          description: newTaskDesc,
+          title: newTaskTitle.trim(),
+          description: newTaskDesc.trim() || null,
           columnId: newTaskColumnId,
           priority: newTaskPriority,
           assignedToId: newTaskAssigneeId || null,
@@ -670,7 +720,25 @@ export default function KanbanBoard({ tenant, token, user }) {
       setIsNewTaskOpen(false);
       setNewTaskTitle('');
       setNewTaskDesc('');
-      await loadTenantData();
+
+      // Directly insert the created task into local board state (NO FULL-SCREEN RELOAD)
+      if (res && res.task) {
+        setActiveBoard((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            columns: prev.columns.map((col) => {
+              if (col.id === res.task.columnId) {
+                if (col.tasks?.some((t) => t.id === res.task.id)) return col;
+                return { ...col, tasks: [...(col.tasks || []), res.task] };
+              }
+              return col;
+            }),
+          };
+        });
+      }
+
+      getActivityLogsApi(tenant.id, token).then(setActivityLogs).catch(() => {});
     } catch (err) {
       setError(err.message || 'Error creating task');
     }
@@ -690,12 +758,12 @@ export default function KanbanBoard({ tenant, token, user }) {
     setConflictError(null);
 
     try {
-      await updateTaskApi(
+      const res = await updateTaskApi(
         tenant.id,
         editingTask.id,
         {
-          title: editTitle,
-          description: editDesc,
+          title: editTitle.trim(),
+          description: editDesc.trim() || null,
           priority: editPriority,
           assignedToId: editAssigneeId || null,
           expectedVersion: editingTask.version,
@@ -704,14 +772,29 @@ export default function KanbanBoard({ tenant, token, user }) {
       );
 
       setEditingTask(null);
-      await loadTenantData();
+
+      // Directly update the task in local state (NO FULL-SCREEN RELOAD)
+      if (res && res.task) {
+        setActiveBoard((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            columns: prev.columns.map((col) => ({
+              ...col,
+              tasks: (col.tasks || []).map((t) => (t.id === res.task.id ? res.task : t)),
+            })),
+          };
+        });
+      }
+
+      getActivityLogsApi(tenant.id, token).then(setActivityLogs).catch(() => {});
     } catch (err) {
       if (err.status === 409) {
         setConflictError({
           message: 'Conflict (HTTP 409): This task was modified by another user.',
           currentTask: err.currentTask,
         });
-        await loadTenantData();
+        loadTenantData(false);
       } else {
         setError(err.message || 'Error updating task');
       }
@@ -722,7 +805,20 @@ export default function KanbanBoard({ tenant, token, user }) {
     if (!confirm('Are you sure you want to delete this task?')) return;
     try {
       await deleteTaskApi(tenant.id, taskId, token);
-      await loadTenantData();
+
+      // Directly remove the task from local state (NO FULL-SCREEN RELOAD)
+      setActiveBoard((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          columns: prev.columns.map((col) => ({
+            ...col,
+            tasks: (col.tasks || []).filter((t) => t.id !== taskId),
+          })),
+        };
+      });
+
+      getActivityLogsApi(tenant.id, token).then(setActivityLogs).catch(() => {});
     } catch (err) {
       setError(err.message || 'Error deleting task');
     }
@@ -730,8 +826,9 @@ export default function KanbanBoard({ tenant, token, user }) {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[350px] space-y-2">
-        <p className="text-slate-500 text-sm">Loading branch Kanban board...</p>
+      <div className="flex flex-col items-center justify-center min-h-[380px] space-y-3">
+        <div className="w-8 h-8 rounded-full border-2 border-indigo-600 border-t-transparent animate-spin" />
+        <p className="text-slate-500 text-xs font-medium">Loading branch Kanban board...</p>
       </div>
     );
   }
@@ -739,30 +836,30 @@ export default function KanbanBoard({ tenant, token, user }) {
   return (
     <div className="space-y-6">
       {/* Board Header Bar */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-bold text-slate-900">
-              {activeBoard?.name || 'No Boards Found'}
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-lg font-bold text-slate-900 tracking-tight">
+              {activeBoard?.name || 'Kanban Workspace'}
             </h2>
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 font-medium">
+            <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200 font-semibold">
               {tenant.name}
             </span>
 
             {/* Live Socket Connection Badge */}
-            <span className="flex items-center gap-1.5 text-xs text-slate-500 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
+            <span className="flex items-center gap-1.5 text-xs bg-slate-50 px-2.5 py-1 rounded-full border border-slate-200/80">
               <span
                 className={`w-2 h-2 rounded-full ${
-                  socketConnected ? 'bg-emerald-500' : 'bg-amber-500'
+                  socketConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
                 }`}
-              ></span>
-              <span className="text-[11px] font-medium">
+              />
+              <span className="text-[11px] font-semibold text-slate-600">
                 {socketConnected ? 'Live Synced' : 'Reconnecting...'}
               </span>
             </span>
           </div>
 
-          {/* Simple Text Presence Indicator */}
+          {/* Connected Presence Tracker */}
           <div className="flex items-center gap-2 mt-2">
             <span className="text-xs font-semibold text-slate-600">
               Online ({onlineUsers.length}):
@@ -775,21 +872,24 @@ export default function KanbanBoard({ tenant, token, user }) {
           </div>
         </div>
 
+        {/* Action Controls */}
         <div className="flex items-center gap-2">
           <button
-            onClick={() => loadTenantData()}
-            className="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-medium cursor-pointer"
+            type="button"
+            onClick={() => loadTenantData(false)}
+            className="px-3.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors cursor-pointer"
           >
             Refresh
           </button>
 
           {activeBoard?.columns?.length > 0 && (
             <button
+              type="button"
               onClick={() => {
                 setNewTaskColumnId(activeBoard.columns[0].id);
                 setIsNewTaskOpen(true);
               }}
-              className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium cursor-pointer shadow-sm"
+              className="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition-all shadow-xs cursor-pointer"
             >
               + New Task
             </button>
@@ -799,17 +899,18 @@ export default function KanbanBoard({ tenant, token, user }) {
 
       {/* Error & OCC Conflict Alerts */}
       {error && (
-        <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs">
-          <strong>Error: </strong> {error}
+        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center justify-between">
+          <span><strong>Error: </strong> {error}</span>
+          <button onClick={() => setError(null)} className="text-rose-600 font-bold ml-2">✕</button>
         </div>
       )}
 
       {conflictError && (
-        <div className="p-4 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs space-y-1">
-          <div className="font-bold text-sm">Optimistic Concurrency Control (OCC) Alert</div>
+        <div className="p-4 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs space-y-1 shadow-xs">
+          <div className="font-bold text-sm">Optimistic Concurrency Control (OCC) Notice</div>
           <div>{conflictError.message}</div>
-          <div className="font-mono text-[11px] bg-white/70 p-1.5 rounded border border-amber-200">
-            Database state protected from overwrite. Latest version has been synced.
+          <div className="font-mono text-[11px] bg-white/80 p-2 rounded border border-amber-200">
+            Database state protected from concurrent overwrite. Board has been synchronized with the latest version.
           </div>
         </div>
       )}
@@ -852,45 +953,52 @@ export default function KanbanBoard({ tenant, token, user }) {
           </DragOverlay>
         </DndContext>
       ) : (
-        <div className="p-8 text-center bg-white rounded-2xl border border-slate-200 text-slate-500 text-sm">
+        <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 text-slate-500 text-sm">
           No boards available for this branch.
         </div>
       )}
 
-      {/* Live Activity Audit Trail */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-bold text-slate-900 text-sm">Tenant Activity Audit Trail</h3>
-          <span className="text-[11px] text-slate-500 font-mono">
-            {activityLogs.length} Events Recorded
+      {/* Real-Time Activity Audit Trail */}
+      <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs">
+        <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+          <div className="flex items-center gap-2">
+            <h3 className="font-bold text-slate-900 text-sm tracking-tight">
+              Activity Audit Trail
+            </h3>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+              Live Stream
+            </span>
+          </div>
+          <span className="text-[11px] text-slate-400 font-mono">
+            {activityLogs.length} Events Logged
           </span>
         </div>
 
-        <div className="space-y-2 max-h-[220px] overflow-y-auto text-xs">
+        <div className="space-y-2 max-h-[220px] overflow-y-auto text-xs pr-1">
           {activityLogs.length > 0 ? (
             activityLogs.map((log) => (
               <div
                 key={log.id}
-                className="p-2.5 rounded-lg border border-slate-100 bg-slate-50 flex items-center justify-between"
+                className="p-2.5 rounded-xl border border-slate-100 bg-slate-50/70 hover:bg-slate-50 transition-colors flex items-center justify-between gap-3"
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2.5 truncate">
                   <span
-                    className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                    className={`px-2 py-0.5 rounded text-[10px] font-bold tracking-wider ${
                       log.action === 'CREATED'
                         ? 'bg-emerald-100 text-emerald-800'
                         : log.action === 'MOVED'
                         ? 'bg-indigo-100 text-indigo-800'
                         : log.action === 'DELETED'
-                        ? 'bg-red-100 text-red-800'
+                        ? 'bg-rose-100 text-rose-800'
                         : 'bg-blue-100 text-blue-800'
                     }`}
                   >
                     {log.action}
                   </span>
-                  <span className="font-medium text-slate-800">
+                  <span className="font-semibold text-slate-800">
                     {log.user?.fullName || 'System User'}
                   </span>
-                  <span className="text-slate-500">
+                  <span className="text-slate-500 truncate">
                     {log.action === 'MOVED' && log.details?.fromColumn
                       ? `moved task from "${log.details.fromColumn}" to "${log.details.toColumn}"`
                       : log.details?.taskTitle
@@ -898,13 +1006,13 @@ export default function KanbanBoard({ tenant, token, user }) {
                       : log.entityType}
                   </span>
                 </div>
-                <span className="text-[10px] text-slate-400 font-mono">
+                <span className="text-[10px] text-slate-400 font-mono shrink-0">
                   {new Date(log.createdAt).toLocaleTimeString()}
                 </span>
               </div>
             ))
           ) : (
-            <p className="text-xs text-slate-400 italic">No activity logs recorded yet.</p>
+            <p className="text-xs text-slate-400 italic py-2">No activity logs recorded yet.</p>
           )}
         </div>
       </div>
@@ -912,39 +1020,48 @@ export default function KanbanBoard({ tenant, token, user }) {
       {/* Modal: New Task */}
       {isNewTaskOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200">
-            <h3 className="font-bold text-slate-900 text-base mb-4">Create New Task</h3>
-            <form onSubmit={handleCreateTask} className="space-y-3 text-xs">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
+            <h3 className="font-bold text-slate-900 text-base mb-4 tracking-tight">
+              Create New Task
+            </h3>
+            <form onSubmit={handleCreateTask} className="space-y-4 text-xs">
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Title</label>
+                <label className="block font-semibold text-slate-700 mb-1.5 uppercase tracking-wider text-[10px]">
+                  Task Title *
+                </label>
                 <input
                   type="text"
                   value={newTaskTitle}
                   onChange={(e) => setNewTaskTitle(e.target.value)}
-                  placeholder="Task title..."
-                  className="w-full px-3 py-2 border rounded-lg text-xs"
+                  placeholder="e.g. Implement user profile endpoint"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                   required
+                  autoFocus
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Description</label>
+                <label className="block font-semibold text-slate-700 mb-1.5 uppercase tracking-wider text-[10px]">
+                  Description
+                </label>
                 <textarea
                   value={newTaskDesc}
                   onChange={(e) => setNewTaskDesc(e.target.value)}
-                  placeholder="Task details..."
-                  className="w-full px-3 py-2 border rounded-lg text-xs"
-                  rows={2}
+                  placeholder="Provide context or acceptance criteria..."
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 resize-none"
+                  rows={3}
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Column</label>
+                  <label className="block font-semibold text-slate-700 mb-1.5 uppercase tracking-wider text-[10px]">
+                    Column
+                  </label>
                   <select
                     value={newTaskColumnId}
                     onChange={(e) => setNewTaskColumnId(e.target.value)}
-                    className="w-full px-2 py-1.5 border rounded-lg text-xs bg-white"
+                    className="w-full px-2.5 py-2 border border-slate-300 rounded-xl text-xs bg-white focus:outline-none focus:border-indigo-500"
                   >
                     {activeBoard?.columns?.map((c) => (
                       <option key={c.id} value={c.id}>
@@ -955,47 +1072,51 @@ export default function KanbanBoard({ tenant, token, user }) {
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Priority</label>
+                  <label className="block font-semibold text-slate-700 mb-1.5 uppercase tracking-wider text-[10px]">
+                    Priority
+                  </label>
                   <select
                     value={newTaskPriority}
                     onChange={(e) => setNewTaskPriority(e.target.value)}
-                    className="w-full px-2 py-1.5 border rounded-lg text-xs bg-white"
+                    className="w-full px-2.5 py-2 border border-slate-300 rounded-xl text-xs bg-white focus:outline-none focus:border-indigo-500"
                   >
-                    <option value="LOW">LOW</option>
-                    <option value="MEDIUM">MEDIUM</option>
-                    <option value="HIGH">HIGH</option>
-                    <option value="URGENT">URGENT</option>
+                    <option value="LOW">Low</option>
+                    <option value="MEDIUM">Medium</option>
+                    <option value="HIGH">High</option>
+                    <option value="URGENT">Urgent</option>
                   </select>
                 </div>
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Assignee</label>
+                <label className="block font-semibold text-slate-700 mb-1.5 uppercase tracking-wider text-[10px]">
+                  Assignee
+                </label>
                 <select
                   value={newTaskAssigneeId}
                   onChange={(e) => setNewTaskAssigneeId(e.target.value)}
-                  className="w-full px-2 py-1.5 border rounded-lg text-xs bg-white"
+                  className="w-full px-2.5 py-2 border border-slate-300 rounded-xl text-xs bg-white focus:outline-none focus:border-indigo-500"
                 >
                   <option value="">Unassigned</option>
                   {members.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.fullName} ({m.role})
+                    <option key={m.id} value={m.user.id}>
+                      {m.user.fullName} ({m.role})
                     </option>
                   ))}
                 </select>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t">
+              <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setIsNewTaskOpen(false)}
-                  className="px-3 py-1.5 rounded-lg border text-slate-600 hover:bg-slate-50 cursor-pointer"
+                  className="px-3.5 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-semibold cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold cursor-pointer shadow-xs"
                 >
                   Create Task
                 </button>
@@ -1008,79 +1129,87 @@ export default function KanbanBoard({ tenant, token, user }) {
       {/* Modal: Edit Task */}
       {editingTask && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-slate-900 text-base">Edit Task</h3>
-              <span className="text-[11px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-                Version: v{editingTask.version}
+              <h3 className="font-bold text-slate-900 text-base tracking-tight">Edit Task</h3>
+              <span className="text-[10px] font-mono bg-slate-100 text-slate-600 px-2 py-0.5 rounded border border-slate-200">
+                Current: v{editingTask.version}
               </span>
             </div>
 
-            <form onSubmit={handleUpdateTask} className="space-y-3 text-xs">
+            <form onSubmit={handleUpdateTask} className="space-y-4 text-xs">
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Title</label>
+                <label className="block font-semibold text-slate-700 mb-1.5 uppercase tracking-wider text-[10px]">
+                  Title *
+                </label>
                 <input
                   type="text"
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg text-xs"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                   required
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Description</label>
+                <label className="block font-semibold text-slate-700 mb-1.5 uppercase tracking-wider text-[10px]">
+                  Description
+                </label>
                 <textarea
                   value={editDesc}
                   onChange={(e) => setEditDesc(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg text-xs"
-                  rows={2}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 resize-none"
+                  rows={3}
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Priority</label>
+                  <label className="block font-semibold text-slate-700 mb-1.5 uppercase tracking-wider text-[10px]">
+                    Priority
+                  </label>
                   <select
                     value={editPriority}
                     onChange={(e) => setEditPriority(e.target.value)}
-                    className="w-full px-2 py-1.5 border rounded-lg text-xs bg-white"
+                    className="w-full px-2.5 py-2 border border-slate-300 rounded-xl text-xs bg-white focus:outline-none focus:border-indigo-500"
                   >
-                    <option value="LOW">LOW</option>
-                    <option value="MEDIUM">MEDIUM</option>
-                    <option value="HIGH">HIGH</option>
-                    <option value="URGENT">URGENT</option>
+                    <option value="LOW">Low</option>
+                    <option value="MEDIUM">Medium</option>
+                    <option value="HIGH">High</option>
+                    <option value="URGENT">Urgent</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Assignee</label>
+                  <label className="block font-semibold text-slate-700 mb-1.5 uppercase tracking-wider text-[10px]">
+                    Assignee
+                  </label>
                   <select
                     value={editAssigneeId}
                     onChange={(e) => setEditAssigneeId(e.target.value)}
-                    className="w-full px-2 py-1.5 border rounded-lg text-xs bg-white"
+                    className="w-full px-2.5 py-2 border border-slate-300 rounded-xl text-xs bg-white focus:outline-none focus:border-indigo-500"
                   >
                     <option value="">Unassigned</option>
                     {members.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.fullName} ({m.role})
+                      <option key={m.id} value={m.user.id}>
+                        {m.user.fullName} ({m.role})
                       </option>
                     ))}
                   </select>
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t">
+              <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setEditingTask(null)}
-                  className="px-3 py-1.5 rounded-lg border text-slate-600 hover:bg-slate-50 cursor-pointer"
+                  className="px-3.5 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-semibold cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold cursor-pointer shadow-xs"
                 >
                   Save Changes
                 </button>
