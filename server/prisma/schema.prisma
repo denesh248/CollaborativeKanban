@@ -1,0 +1,207 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// -------------------------------------------------------------
+// Role-Based Access Control & Priority Enums
+// -------------------------------------------------------------
+enum Role {
+  ORG_ADMIN
+  TENANT_ADMIN
+  MEMBER
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+// -------------------------------------------------------------
+// 1. Organization (Parent Business Entity)
+// -------------------------------------------------------------
+model Organization {
+  id          String       @id @default(uuid()) @db.Uuid
+  name        String       @db.VarChar(255)
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  // Relationships
+  tenants     Tenant[]
+  memberships Membership[]
+  boards      Board[]
+
+  @@map("organizations")
+}
+
+// -------------------------------------------------------------
+// 2. Tenant (Branch / Workspace e.g. Hyderabad, Bangalore, Chennai)
+// -------------------------------------------------------------
+model Tenant {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  name           String       @db.VarChar(255)
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  // Relationships
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  memberships    Membership[]
+  boards         Board[]
+  columns        Column[]
+  tasks          Task[]
+  activityLogs   ActivityLog[]
+
+  @@index([organizationId])
+  @@map("tenants")
+}
+
+// -------------------------------------------------------------
+// 3. User (Employee Account)
+// -------------------------------------------------------------
+model User {
+  id           String        @id @default(uuid()) @db.Uuid
+  email        String        @unique @db.VarChar(255)
+  passwordHash String        @map("password_hash") @db.VarChar(255)
+  fullName     String        @map("full_name") @db.VarChar(255)
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  // Relationships
+  memberships   Membership[]
+  createdBoards Board[]       @relation("BoardCreator")
+  assignedTasks Task[]        @relation("TaskAssignee")
+  createdTasks  Task[]        @relation("TaskCreator")
+  activityLogs  ActivityLog[]
+
+  @@map("users")
+}
+
+// -------------------------------------------------------------
+// 4. Membership (Links User to Organization and Tenant with Role)
+// -------------------------------------------------------------
+model Membership {
+  id             String       @id @default(uuid()) @db.Uuid
+  userId         String       @map("user_id") @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  tenantId       String?      @map("tenant_id") @db.Uuid // Nullable for Org-level administrators
+  role           Role         @default(MEMBER)
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  // Relationships
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tenant         Tenant?      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId, tenantId])
+  @@index([userId])
+  @@index([organizationId])
+  @@index([tenantId])
+  @@map("memberships")
+}
+
+// -------------------------------------------------------------
+// 5. Board (Kanban Workspace, scoped to a specific Tenant)
+// -------------------------------------------------------------
+model Board {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  tenantId       String       @map("tenant_id") @db.Uuid
+  name           String       @db.VarChar(255)
+  description    String?      @db.Text
+  createdById    String       @map("created_by") @db.Uuid
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  // Relationships
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tenant         Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  creator        User         @relation("BoardCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  columns        Column[]
+  tasks          Task[]
+
+  @@index([tenantId])
+  @@index([organizationId])
+  @@map("boards")
+}
+
+// -------------------------------------------------------------
+// 6. Column (Task Status Stage: To Do, In Progress, Testing, Done)
+// -------------------------------------------------------------
+model Column {
+  id        String   @id @default(uuid()) @db.Uuid
+  boardId   String   @map("board_id") @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid // Tenant relation enforces isolation
+  name      String   @db.VarChar(255)
+  position  Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relationships
+  board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tasks     Task[]
+
+  @@index([boardId, position])
+  @@index([tenantId])
+  @@map("columns")
+}
+
+// -------------------------------------------------------------
+// 7. Task (Kanban Work Item with Concurrency Versioning)
+// -------------------------------------------------------------
+model Task {
+  id           String    @id @default(uuid()) @db.Uuid
+  boardId      String    @map("board_id") @db.Uuid
+  columnId     String    @map("column_id") @db.Uuid
+  tenantId     String    @map("tenant_id") @db.Uuid // Tenant relation enforces isolation
+  title        String    @db.VarChar(255)
+  description  String?   @db.Text
+  position     Int       @default(0) // Ordering within column
+  version      Int       @default(1) // OCC Concurrency counter (increments on every mutation)
+  priority     Priority  @default(MEDIUM)
+  dueDate      DateTime? @map("due_date")
+  assignedToId String?   @map("assigned_to") @db.Uuid
+  createdById  String    @map("created_by") @db.Uuid
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  // Relationships
+  board        Board     @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  column       Column    @relation(fields: [columnId], references: [id], onDelete: Cascade)
+  tenant       Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assignee     User?     @relation("TaskAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  creator      User      @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, boardId])
+  @@index([columnId, position])
+  @@index([assignedToId])
+  @@map("tasks")
+}
+
+// -------------------------------------------------------------
+// 8. ActivityLog (Tenant Audit History, preserved on user removal)
+// -------------------------------------------------------------
+model ActivityLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  userId     String?  @map("user_id") @db.Uuid // Nullable so history is preserved if user is deleted
+  entityType String   @map("entity_type") @db.VarChar(50) // e.g. TASK, COLUMN, BOARD
+  entityId   String   @map("entity_id") @db.Uuid
+  action     String   @db.VarChar(50) // e.g. CREATED, UPDATED, MOVED, DELETED
+  details    Json     @db.JsonB
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  // Relationships
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull) // Preserves log if user is deleted
+
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@map("activity_logs")
+}
