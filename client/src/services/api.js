@@ -1,7 +1,7 @@
 // client/src/services/api.js
 // Clean and straightforward API client for the Kanban application
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/$/, '');
 
 // Helper function to handle fetch calls, JSON parsing, and OCC 409 errors
 async function request(path, options = {}, token = null) {
