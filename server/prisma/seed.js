@@ -4,9 +4,9 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Starting database seed with multi-organization enterprise data...');
+  console.log('🌱 Starting database seed for ONE main company with multiple branches...');
 
-  // 1. Clean existing records (in reverse dependency order)
+  // 1. Clean existing records in reverse dependency order
   await prisma.activityLog.deleteMany({});
   await prisma.task.deleteMany({});
   await prisma.column.deleteMany({});
@@ -22,39 +22,58 @@ async function main() {
   const passwordHash = await bcrypt.hash('Password123!', 10);
 
   // =========================================================================
-  // ORGANIZATION 1: Apex Global Technologies
+  // ONE MAIN COMPANY: Apex Global Technologies
   // =========================================================================
-  const apexOrg = await prisma.organization.create({
+  const company = await prisma.organization.create({
     data: {
       name: 'Apex Global Technologies',
     },
   });
-  console.log(`🏢 Created Organization 1: ${apexOrg.name}`);
+  console.log(`🏢 Created Single Main Company: ${company.name}`);
 
-  // Apex Tenants (Branches)
+  // =========================================================================
+  // 5 BRANCHES (TENANTS) UNDER APEX GLOBAL TECHNOLOGIES
+  // =========================================================================
   const hydTenant = await prisma.tenant.create({
     data: {
       name: 'Hyderabad Engineering Hub',
-      organizationId: apexOrg.id,
+      organizationId: company.id,
     },
   });
 
   const blrTenant = await prisma.tenant.create({
     data: {
-      name: 'Bangalore Innovation Lab',
-      organizationId: apexOrg.id,
+      name: 'Bangalore Cloud Campus',
+      organizationId: company.id,
     },
   });
 
   const chnTenant = await prisma.tenant.create({
     data: {
       name: 'Chennai Delivery Center',
-      organizationId: apexOrg.id,
+      organizationId: company.id,
     },
   });
-  console.log('📍 Created Apex Tenants: Hyderabad, Bangalore, Chennai.');
 
-  // Apex Users
+  const puneTenant = await prisma.tenant.create({
+    data: {
+      name: 'Pune AI & Analytics Lab',
+      organizationId: company.id,
+    },
+  });
+
+  const mumTenant = await prisma.tenant.create({
+    data: {
+      name: 'Mumbai Fintech Division',
+      organizationId: company.id,
+    },
+  });
+
+  console.log('📍 Created 5 Branches: Hyderabad, Bangalore, Chennai, Pune, Mumbai.');
+
+  // =========================================================================
+  // USERS (ALL BELONGING TO APEX GLOBAL TECHNOLOGIES)
+  // =========================================================================
   const rahul = await prisma.user.create({
     data: {
       email: 'rahul@apextech.com',
@@ -95,71 +114,147 @@ async function main() {
     },
   });
 
-  // Apex Memberships
-  // Rahul: Org Admin with company-wide branch access
+  const ananya = await prisma.user.create({
+    data: {
+      email: 'ananya@apextech.com',
+      fullName: 'Ananya Verma',
+      passwordHash,
+    },
+  });
+
+  const karthik = await prisma.user.create({
+    data: {
+      email: 'karthik@apextech.com',
+      fullName: 'Karthik Iyer',
+      passwordHash,
+    },
+  });
+
+  const rohit = await prisma.user.create({
+    data: {
+      email: 'rohit@apextech.com',
+      fullName: 'Rohit Mehta',
+      passwordHash,
+    },
+  });
+
+  const neha = await prisma.user.create({
+    data: {
+      email: 'neha@apextech.com',
+      fullName: 'Neha Kapoor',
+      passwordHash,
+    },
+  });
+
+  console.log('👤 Created 9 Apex Global users.');
+
+  // =========================================================================
+  // RBAC MEMBERSHIPS
+  // =========================================================================
+  // Rahul: ORG_ADMIN with company-wide access to all 5 branches
   await prisma.membership.create({
     data: {
       userId: rahul.id,
-      organizationId: apexOrg.id,
-      tenantId: null,
+      organizationId: company.id,
+      tenantId: null, // Company-wide administrator
       role: 'ORG_ADMIN',
     },
   });
   await prisma.membership.create({
     data: {
       userId: rahul.id,
-      organizationId: apexOrg.id,
+      organizationId: company.id,
       tenantId: hydTenant.id,
       role: 'ORG_ADMIN',
     },
   });
 
-  // Priya: Tenant Admin for Hyderabad
+  // Hyderabad: Priya (Tenant Admin), Arjun (Member)
   await prisma.membership.create({
     data: {
       userId: priya.id,
-      organizationId: apexOrg.id,
+      organizationId: company.id,
       tenantId: hydTenant.id,
       role: 'TENANT_ADMIN',
     },
   });
-
-  // Arjun: Member in Hyderabad
   await prisma.membership.create({
     data: {
       userId: arjun.id,
-      organizationId: apexOrg.id,
+      organizationId: company.id,
       tenantId: hydTenant.id,
       role: 'MEMBER',
     },
   });
 
-  // Sneha: Tenant Admin for Bangalore
+  // Bangalore: Sneha (Tenant Admin)
   await prisma.membership.create({
     data: {
       userId: sneha.id,
-      organizationId: apexOrg.id,
+      organizationId: company.id,
       tenantId: blrTenant.id,
       role: 'TENANT_ADMIN',
     },
   });
 
-  // Vikram: Member in Chennai
+  // Chennai: Vikram (Member)
   await prisma.membership.create({
     data: {
       userId: vikram.id,
-      organizationId: apexOrg.id,
+      organizationId: company.id,
       tenantId: chnTenant.id,
       role: 'MEMBER',
     },
   });
 
-  // Hyderabad Board & Tasks
+  // Pune: Ananya (Tenant Admin), Karthik (Member)
+  await prisma.membership.create({
+    data: {
+      userId: ananya.id,
+      organizationId: company.id,
+      tenantId: puneTenant.id,
+      role: 'TENANT_ADMIN',
+    },
+  });
+  await prisma.membership.create({
+    data: {
+      userId: karthik.id,
+      organizationId: company.id,
+      tenantId: puneTenant.id,
+      role: 'MEMBER',
+    },
+  });
+
+  // Mumbai: Rohit (Tenant Admin), Neha (Member)
+  await prisma.membership.create({
+    data: {
+      userId: rohit.id,
+      organizationId: company.id,
+      tenantId: mumTenant.id,
+      role: 'TENANT_ADMIN',
+    },
+  });
+  await prisma.membership.create({
+    data: {
+      userId: neha.id,
+      organizationId: company.id,
+      tenantId: mumTenant.id,
+      role: 'MEMBER',
+    },
+  });
+
+  console.log('🛡️ Assigned RBAC roles across all branches.');
+
+  // =========================================================================
+  // BOARDS, COLUMNS & TASKS FOR EACH BRANCH
+  // =========================================================================
+
+  // --- BRANCH 1: Hyderabad Engineering Hub ---
   const hydBoard = await prisma.board.create({
     data: {
       name: 'Product Platform Engineering',
-      description: 'Core sprint workspace for Hyderabad platform team',
-      organizationId: apexOrg.id,
+      description: 'Core platform architecture and backend sprint board',
+      organizationId: company.id,
       tenantId: hydTenant.id,
       createdById: priya.id,
     },
@@ -180,7 +275,7 @@ async function main() {
 
   const task1 = await prisma.task.create({
     data: {
-      title: 'Architect Event-Driven Multi-Tenant Core',
+      title: 'Architect Multi-Tenant Database Core',
       description: 'Configure tenant foreign-key isolation and connection pooling for enterprise scaling.',
       position: 1000,
       version: 1,
@@ -225,7 +320,7 @@ async function main() {
 
   const task4 = await prisma.task.create({
     data: {
-      title: 'Cross-Tenant Security Audit',
+      title: 'Branch Security & Isolation Audit',
       description: 'Verify 403 Forbidden on forged tenant headers across REST & WebSockets.',
       position: 1000,
       version: 1,
@@ -238,7 +333,6 @@ async function main() {
     },
   });
 
-  // Hyderabad Activity Logs
   await prisma.activityLog.createMany({
     data: [
       {
@@ -268,12 +362,12 @@ async function main() {
     ],
   });
 
-  // Bangalore Board & Tasks
+  // --- BRANCH 2: Bangalore Cloud Campus ---
   const blrBoard = await prisma.board.create({
     data: {
-      name: 'Cloud Infrastructure & DevOps',
-      description: 'Bangalore team infrastructure provisioning and CI/CD pipelines',
-      organizationId: apexOrg.id,
+      name: 'Cloud Infrastructure & Kubernetes',
+      description: 'Bangalore cloud infrastructure provisioning and CI/CD pipelines',
+      organizationId: company.id,
       tenantId: blrTenant.id,
       createdById: sneha.id,
     },
@@ -292,7 +386,7 @@ async function main() {
   await prisma.task.create({
     data: {
       title: 'Multi-Region Kubernetes Cluster Setup',
-      description: 'Provision EKS clusters with autoscaling nodes across ap-south-1 availability zones.',
+      description: 'Provision AWS EKS clusters with autoscaling nodes across ap-south-1 zones.',
       position: 1000,
       version: 1,
       priority: 'URGENT',
@@ -319,12 +413,12 @@ async function main() {
     },
   });
 
-  // Chennai Board & Tasks
+  // --- BRANCH 3: Chennai Delivery Center ---
   const chnBoard = await prisma.board.create({
     data: {
-      name: 'Client Delivery & QA Automation',
+      name: 'Client QA & Release Automation',
       description: 'Chennai branch test coverage and release certification',
-      organizationId: apexOrg.id,
+      organizationId: company.id,
       tenantId: chnTenant.id,
       createdById: vikram.id,
     },
@@ -355,104 +449,14 @@ async function main() {
     },
   });
 
-  // =========================================================================
-  // ORGANIZATION 2: Nexus Cloud Systems (Completely separate organization)
-  // =========================================================================
-  const nexusOrg = await prisma.organization.create({
-    data: {
-      name: 'Nexus Cloud Systems',
-    },
-  });
-  console.log(`🏢 Created Organization 2: ${nexusOrg.name}`);
-
-  // Nexus Tenants (Branches)
-  const puneTenant = await prisma.tenant.create({
-    data: {
-      name: 'Pune AI & Analytics Lab',
-      organizationId: nexusOrg.id,
-    },
-  });
-
-  const mumTenant = await prisma.tenant.create({
-    data: {
-      name: 'Mumbai Fintech Hub',
-      organizationId: nexusOrg.id,
-    },
-  });
-  console.log('📍 Created Nexus Tenants: Pune, Mumbai.');
-
-  // Nexus Users
-  const ananya = await prisma.user.create({
-    data: {
-      email: 'ananya@nexuscloud.io',
-      fullName: 'Ananya Verma',
-      passwordHash,
-    },
-  });
-
-  const karthik = await prisma.user.create({
-    data: {
-      email: 'karthik@nexuscloud.io',
-      fullName: 'Karthik Iyer',
-      passwordHash,
-    },
-  });
-
-  const rohit = await prisma.user.create({
-    data: {
-      email: 'rohit@nexuscloud.io',
-      fullName: 'Rohit Mehta',
-      passwordHash,
-    },
-  });
-
-  // Nexus Memberships
-  // Ananya: Org Admin across Nexus Cloud
-  await prisma.membership.create({
-    data: {
-      userId: ananya.id,
-      organizationId: nexusOrg.id,
-      tenantId: null,
-      role: 'ORG_ADMIN',
-    },
-  });
-  await prisma.membership.create({
-    data: {
-      userId: ananya.id,
-      organizationId: nexusOrg.id,
-      tenantId: puneTenant.id,
-      role: 'ORG_ADMIN',
-    },
-  });
-
-  // Karthik: Tenant Admin for Pune
-  await prisma.membership.create({
-    data: {
-      userId: karthik.id,
-      organizationId: nexusOrg.id,
-      tenantId: puneTenant.id,
-      role: 'TENANT_ADMIN',
-    },
-  });
-
-  // Rohit: Member in Mumbai
-  await prisma.membership.create({
-    data: {
-      userId: rohit.id,
-      organizationId: nexusOrg.id,
-      tenantId: mumTenant.id,
-      role: 'MEMBER',
-    },
-  });
-
-  // Pune Board & Tasks
+  // --- BRANCH 4: Pune AI & Analytics Lab ---
   const puneBoard = await prisma.board.create({
     data: {
-      name: 'Enterprise AI & NLP Pipeline',
-      description: 'Pune lab large language model fine-tuning and inference pipelines',
-      organizationId: nexusOrg.id,
+      name: 'Enterprise AI & Machine Learning',
+      description: 'Pune lab large language models, inference engines, and RAG pipelines',
+      organizationId: company.id,
       tenantId: puneTenant.id,
-      createdById: karthik.id,
+      createdById: ananya.id,
     },
   });
 
@@ -463,25 +467,7 @@ async function main() {
     data: { name: 'Model Training', position: 2000, boardId: puneBoard.id, tenantId: puneTenant.id },
   });
   const puneCol3 = await prisma.column.create({
-    data: { name: 'Evaluation', position: 3000, boardId: puneBoard.id, tenantId: puneTenant.id },
-  });
-  const puneCol4 = await prisma.column.create({
-    data: { name: 'Deployed Service', position: 4000, boardId: puneBoard.id, tenantId: puneTenant.id },
-  });
-
-  await prisma.task.create({
-    data: {
-      title: 'Domain Dataset Curation & Cleaning',
-      description: 'Prepare sanitized unstructured enterprise documents for RAG embedding generation.',
-      position: 1000,
-      version: 1,
-      priority: 'HIGH',
-      boardId: puneBoard.id,
-      columnId: puneCol1.id,
-      tenantId: puneTenant.id,
-      assignedToId: ananya.id,
-      createdById: karthik.id,
-    },
+    data: { name: 'Inference Ready', position: 3000, boardId: puneBoard.id, tenantId: puneTenant.id },
   });
 
   await prisma.task.create({
@@ -495,16 +481,31 @@ async function main() {
       columnId: puneCol2.id,
       tenantId: puneTenant.id,
       assignedToId: karthik.id,
-      createdById: karthik.id,
+      createdById: ananya.id,
     },
   });
 
-  // Mumbai Board & Tasks
+  await prisma.task.create({
+    data: {
+      title: 'Domain Vector Database Indexing',
+      description: 'Ingest enterprise documentation vectors with cosine distance matching.',
+      position: 1000,
+      version: 1,
+      priority: 'HIGH',
+      boardId: puneBoard.id,
+      columnId: puneCol1.id,
+      tenantId: puneTenant.id,
+      assignedToId: ananya.id,
+      createdById: ananya.id,
+    },
+  });
+
+  // --- BRANCH 5: Mumbai Fintech Division ---
   const mumBoard = await prisma.board.create({
     data: {
       name: 'Payment Gateway & PCI Compliance',
       description: 'Mumbai fintech transactions and tokenized payment security',
-      organizationId: nexusOrg.id,
+      organizationId: company.id,
       tenantId: mumTenant.id,
       createdById: rohit.id,
     },
@@ -530,97 +531,31 @@ async function main() {
       boardId: mumBoard.id,
       columnId: mumCol2.id,
       tenantId: mumTenant.id,
+      assignedToId: neha.id,
+      createdById: rohit.id,
+    },
+  });
+
+  await prisma.task.create({
+    data: {
+      title: 'High-Throughput Settlement Engine',
+      description: 'Process batch settlements under 100ms with idempotency keys.',
+      position: 1000,
+      version: 1,
+      priority: 'HIGH',
+      boardId: mumBoard.id,
+      columnId: mumCol1.id,
+      tenantId: mumTenant.id,
       assignedToId: rohit.id,
       createdById: rohit.id,
     },
   });
 
-  // Activity log for Mumbai
-  await prisma.activityLog.create({
-    data: {
-      tenantId: mumTenant.id,
-      userId: rohit.id,
-      entityType: 'TASK',
-      entityId: mumBoard.id,
-      action: 'CREATED',
-      details: { taskTitle: 'Implement Tokenized Card Vault', column: 'Security Audit' },
-    },
-  });
-
-  // =========================================================================
-  // ORGANIZATION 3: Pulse Dynamics Global
-  // =========================================================================
-  const pulseOrg = await prisma.organization.create({
-    data: {
-      name: 'Pulse Dynamics Global',
-    },
-  });
-  console.log(`🏢 Created Organization 3: ${pulseOrg.name}`);
-
-  const delhiTenant = await prisma.tenant.create({
-    data: {
-      name: 'Delhi Operations Center',
-      organizationId: pulseOrg.id,
-    },
-  });
-
-  const sameer = await prisma.user.create({
-    data: {
-      email: 'sameer@pulsedynamics.com',
-      fullName: 'Sameer Joshi',
-      passwordHash,
-    },
-  });
-
-  await prisma.membership.create({
-    data: {
-      userId: sameer.id,
-      organizationId: pulseOrg.id,
-      tenantId: delhiTenant.id,
-      role: 'TENANT_ADMIN',
-    },
-  });
-
-  const delhiBoard = await prisma.board.create({
-    data: {
-      name: 'Supply Chain & IoT Logistics',
-      description: 'Real-time telemetry and dispatch logistics board',
-      organizationId: pulseOrg.id,
-      tenantId: delhiTenant.id,
-      createdById: sameer.id,
-    },
-  });
-
-  const dCol1 = await prisma.column.create({
-    data: { name: 'Incoming Orders', position: 1000, boardId: delhiBoard.id, tenantId: delhiTenant.id },
-  });
-  const dCol2 = await prisma.column.create({
-    data: { name: 'Dispatch & Transit', position: 2000, boardId: delhiBoard.id, tenantId: delhiTenant.id },
-  });
-  const dCol3 = await prisma.column.create({
-    data: { name: 'Delivered', position: 3000, boardId: delhiBoard.id, tenantId: delhiTenant.id },
-  });
-
-  await prisma.task.create({
-    data: {
-      title: 'GPS Sensor Fleet Telemetry Stream',
-      description: 'Ingest location telemetry every 5 seconds via MQTT gateway into analytics warehouse.',
-      position: 1000,
-      version: 1,
-      priority: 'HIGH',
-      boardId: delhiBoard.id,
-      columnId: dCol2.id,
-      tenantId: delhiTenant.id,
-      assignedToId: sameer.id,
-      createdById: sameer.id,
-    },
-  });
-
   console.log('\n=============================================================');
-  console.log('✅ MULTI-ORGANIZATION DATABASE SEEDED SUCCESSFULLY!');
-  console.log('   - 3 Organizations: Apex Global, Nexus Cloud, Pulse Dynamics');
-  console.log('   - 6 Branch Tenants');
-  console.log('   - 9 Demo Users with bcrypt hashed passwords');
+  console.log('✅ DATABASE SEEDED FOR ONE MAIN COMPANY WITH 5 BRANCHES!');
+  console.log('   - Main Company: Apex Global Technologies');
+  console.log('   - 5 Branch Tenants: Hyderabad, Bangalore, Chennai, Pune, Mumbai');
+  console.log('   - 9 Demo Users (All @apextech.com with Password123!)');
   console.log('   - 5 Kanban Boards with columns, tasks, & OCC versioning');
   console.log('=============================================================\n');
 }
