@@ -1,4 +1,5 @@
 import { prisma } from '../lib/prisma.js';
+import { emitToTenant } from '../socket.js';
 
 // -------------------------------------------------------------
 // 1. Create a task in a column
@@ -34,7 +35,7 @@ export const createTask = async (req, res) => {
     const position = highestTask ? highestTask.position + 1000 : 1000;
 
     // Create task and activity log in a transaction
-    const task = await prisma.$transaction(async (tx) => {
+    const { task, log } = await prisma.$transaction(async (tx) => {
       const newTask = await tx.task.create({
         data: {
           title: title.trim(),
@@ -60,7 +61,7 @@ export const createTask = async (req, res) => {
       });
 
       // Audit log entry
-      await tx.activityLog.create({
+      const activityLog = await tx.activityLog.create({
         data: {
           tenantId,
           userId: req.user.id,
@@ -69,10 +70,17 @@ export const createTask = async (req, res) => {
           action: 'CREATED',
           details: { taskTitle: newTask.title, column: column.name },
         },
+        include: {
+          user: { select: { id: true, fullName: true, email: true } },
+        },
       });
 
-      return newTask;
+      return { task: newTask, log: activityLog };
     });
+
+    // Real-Time Socket.IO Broadcast to authorized branch room
+    emitToTenant(tenantId, 'task:created', { task, actorId: req.user.id });
+    emitToTenant(tenantId, 'activity:new', { log });
 
     return res.status(201).json({ message: 'Task created successfully', task });
   } catch (error) {
@@ -138,8 +146,8 @@ export const updateTask = async (req, res) => {
     }
 
     // Update task and log activity
-    const updated = await prisma.$transaction(async (tx) => {
-      const task = await tx.task.update({
+    const { task, log } = await prisma.$transaction(async (tx) => {
+      const updated = await tx.task.update({
         where: { id: taskId },
         data: {
           ...(title && { title: title.trim() }),
@@ -155,21 +163,28 @@ export const updateTask = async (req, res) => {
         },
       });
 
-      await tx.activityLog.create({
+      const activityLog = await tx.activityLog.create({
         data: {
           tenantId,
           userId: req.user.id,
           entityType: 'TASK',
-          entityId: task.id,
+          entityId: updated.id,
           action: 'UPDATED',
-          details: { taskTitle: task.title, newVersion: task.version },
+          details: { taskTitle: updated.title, newVersion: updated.version },
+        },
+        include: {
+          user: { select: { id: true, fullName: true, email: true } },
         },
       });
 
-      return task;
+      return { task: updated, log: activityLog };
     });
 
-    return res.status(200).json({ message: 'Task updated successfully', task: updated });
+    // Real-Time Socket.IO Broadcast
+    emitToTenant(tenantId, 'task:updated', { task, actorId: req.user.id });
+    emitToTenant(tenantId, 'activity:new', { log });
+
+    return res.status(200).json({ message: 'Task updated successfully', task });
   } catch (error) {
     console.error('Error updating task:', error);
     return res.status(500).json({ message: 'Failed to update task' });
@@ -219,8 +234,8 @@ export const moveTask = async (req, res) => {
     }
 
     // Execute atomic move and activity log
-    const moved = await prisma.$transaction(async (tx) => {
-      const task = await tx.task.update({
+    const { task, log } = await prisma.$transaction(async (tx) => {
+      const moved = await tx.task.update({
         where: { id: taskId },
         data: {
           columnId: destinationColumnId,
@@ -233,26 +248,39 @@ export const moveTask = async (req, res) => {
         },
       });
 
-      await tx.activityLog.create({
+      const activityLog = await tx.activityLog.create({
         data: {
           tenantId,
           userId: req.user.id,
           entityType: 'TASK',
-          entityId: task.id,
+          entityId: moved.id,
           action: 'MOVED',
           details: {
-            taskTitle: task.title,
+            taskTitle: moved.title,
             fromColumn: existing.column.name,
             toColumn: destColumn.name,
-            newPosition: task.position,
+            newPosition: moved.position,
           },
+        },
+        include: {
+          user: { select: { id: true, fullName: true, email: true } },
         },
       });
 
-      return task;
+      return { task: moved, log: activityLog };
     });
 
-    return res.status(200).json({ message: 'Task moved successfully', task: moved });
+    // Real-Time Socket.IO Broadcast
+    emitToTenant(tenantId, 'task:moved', {
+      task,
+      actorId: req.user.id,
+      fromColumnId: existing.columnId,
+      toColumnId: destinationColumnId,
+      newPosition: task.position,
+    });
+    emitToTenant(tenantId, 'activity:new', { log });
+
+    return res.status(200).json({ message: 'Task moved successfully', task });
   } catch (error) {
     console.error('Error moving task:', error);
     return res.status(500).json({ message: 'Failed to move task' });
@@ -275,8 +303,8 @@ export const deleteTask = async (req, res) => {
       return res.status(404).json({ message: 'Task not found in this branch' });
     }
 
-    await prisma.$transaction(async (tx) => {
-      await tx.activityLog.create({
+    const log = await prisma.$transaction(async (tx) => {
+      const activityLog = await tx.activityLog.create({
         data: {
           tenantId,
           userId: req.user.id,
@@ -285,12 +313,21 @@ export const deleteTask = async (req, res) => {
           action: 'DELETED',
           details: { taskTitle: existing.title },
         },
+        include: {
+          user: { select: { id: true, fullName: true, email: true } },
+        },
       });
 
       await tx.task.delete({
         where: { id: taskId },
       });
+
+      return activityLog;
     });
+
+    // Real-Time Socket.IO Broadcast
+    emitToTenant(tenantId, 'task:deleted', { taskId, actorId: req.user.id });
+    emitToTenant(tenantId, 'activity:new', { log });
 
     return res.status(200).json({ message: 'Task deleted successfully' });
   } catch (error) {

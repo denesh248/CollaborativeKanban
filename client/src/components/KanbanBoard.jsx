@@ -29,6 +29,7 @@ import {
   getActivityLogsApi,
   getBranchMembersApi,
 } from '../services/api.js';
+import { connectSocket } from '../services/socket.js';
 
 // Helper: Calculate new integer position between neighboring tasks
 const calculateNewPosition = (tasks, targetIndex) => {
@@ -239,12 +240,14 @@ function DroppableColumn({
   );
 }
 
-// Main Component: KanbanBoard
+// Main Component: KanbanBoard with Real-Time Socket.IO Synchronization
 export default function KanbanBoard({ tenant, token, user }) {
   const [boards, setBoards] = useState([]);
   const [activeBoard, setActiveBoard] = useState(null);
   const [members, setMembers] = useState([]);
   const [activityLogs, setActivityLogs] = useState([]);
+  const [onlineUsers, setOnlineUsers] = useState([]);
+  const [socketConnected, setSocketConnected] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [conflictError, setConflictError] = useState(null);
@@ -274,6 +277,7 @@ export default function KanbanBoard({ tenant, token, user }) {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
+  // 1. Initial Load of Tenant Data
   useEffect(() => {
     if (tenant?.id && token) {
       loadTenantData();
@@ -308,6 +312,152 @@ export default function KanbanBoard({ tenant, token, user }) {
       setLoading(false);
     }
   };
+
+  // 2. Real-Time Collaboration & Presence via Socket.IO
+  useEffect(() => {
+    if (!tenant?.id || !token || !user?.id) return;
+
+    const socket = connectSocket(token);
+
+    const handleConnect = () => {
+      setSocketConnected(true);
+      socket.emit('tenant:join', { tenantId: tenant.id });
+    };
+
+    const handleDisconnect = () => {
+      setSocketConnected(false);
+    };
+
+    const handleReconnect = () => {
+      setSocketConnected(true);
+      socket.emit('tenant:join', { tenantId: tenant.id });
+      // Re-fetch board to reconcile missed mutations while disconnected
+      loadTenantData();
+    };
+
+    if (socket.connected) {
+      handleConnect();
+    } else {
+      socket.on('connect', handleConnect);
+    }
+
+    socket.on('disconnect', handleDisconnect);
+    socket.on('reconnect', handleReconnect);
+
+    // Presence updates
+    socket.on('presence:update', ({ onlineUsers }) => {
+      setOnlineUsers(onlineUsers || []);
+    });
+
+    // Real-Time Task Mutation Listeners (Ignore local actor to prevent duplicate updates)
+    socket.on('task:created', ({ task, actorId }) => {
+      if (actorId === user.id) return;
+      setActiveBoard((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          columns: prev.columns.map((col) => {
+            if (col.id === task.columnId) {
+              if (col.tasks.some((t) => t.id === task.id)) return col;
+              return { ...col, tasks: [...col.tasks, task] };
+            }
+            return col;
+          }),
+        };
+      });
+    });
+
+    socket.on('task:updated', ({ task, actorId }) => {
+      if (actorId === user.id) return;
+      setActiveBoard((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          columns: prev.columns.map((col) => ({
+            ...col,
+            tasks: col.tasks.map((t) => (t.id === task.id ? { ...t, ...task } : t)),
+          })),
+        };
+      });
+    });
+
+    socket.on('task:moved', ({ task, actorId, fromColumnId, toColumnId, newPosition }) => {
+      if (actorId === user.id) return;
+      setActiveBoard((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          columns: prev.columns.map((col) => {
+            if (col.id === fromColumnId && fromColumnId !== toColumnId) {
+              return {
+                ...col,
+                tasks: col.tasks.filter((t) => t.id !== task.id),
+              };
+            }
+            if (col.id === toColumnId) {
+              const filtered = col.tasks.filter((t) => t.id !== task.id);
+              const updatedList = [
+                ...filtered,
+                { ...task, columnId: toColumnId, position: newPosition },
+              ];
+              updatedList.sort((a, b) => a.position - b.position);
+              return {
+                ...col,
+                tasks: updatedList,
+              };
+            }
+            return col;
+          }),
+        };
+      });
+    });
+
+    socket.on('task:deleted', ({ taskId, actorId }) => {
+      if (actorId === user.id) return;
+      setActiveBoard((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          columns: prev.columns.map((col) => ({
+            ...col,
+            tasks: col.tasks.filter((t) => t.id !== taskId),
+          })),
+        };
+      });
+    });
+
+    // Real-Time Activity Log Stream Listener
+    socket.on('activity:new', ({ log }) => {
+      if (!log) return;
+      setActivityLogs((prev) => {
+        if (prev.some((l) => l.id === log.id)) return prev;
+        return [log, ...prev];
+      });
+    });
+
+    // Board & Column Structure changes
+    socket.on('board:updated', () => loadTenantData());
+    socket.on('column:created', () => loadTenantData());
+    socket.on('column:updated', () => loadTenantData());
+    socket.on('column:deleted', () => loadTenantData());
+
+    return () => {
+      socket.emit('tenant:leave', { tenantId: tenant.id });
+      socket.off('connect', handleConnect);
+      socket.off('disconnect', handleDisconnect);
+      socket.off('reconnect', handleReconnect);
+      socket.off('presence:update');
+      socket.off('task:created');
+      socket.off('task:updated');
+      socket.off('task:moved');
+      socket.off('task:deleted');
+      socket.off('activity:new');
+      socket.off('board:updated');
+      socket.off('column:created');
+      socket.off('column:updated');
+      socket.off('column:deleted');
+    };
+  }, [tenant?.id, token, user?.id]);
 
   // Drag and Drop Handlers
   const handleDragStart = (event) => {
@@ -598,10 +748,31 @@ export default function KanbanBoard({ tenant, token, user }) {
             <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 font-medium">
               {tenant.name}
             </span>
+
+            {/* Live Socket Connection Badge */}
+            <span className="flex items-center gap-1.5 text-xs text-slate-500 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  socketConnected ? 'bg-emerald-500' : 'bg-amber-500'
+                }`}
+              ></span>
+              <span className="text-[11px] font-medium">
+                {socketConnected ? 'Live Synced' : 'Reconnecting...'}
+              </span>
+            </span>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
-            {activeBoard?.description || 'All tasks are isolated to this tenant. Drag and drop cards to organize.'}
-          </p>
+
+          {/* Simple Text Presence Indicator */}
+          <div className="flex items-center gap-2 mt-2">
+            <span className="text-xs font-semibold text-slate-600">
+              Online ({onlineUsers.length}):
+            </span>
+            <span className="text-xs text-slate-500 truncate max-w-md">
+              {onlineUsers.length > 0
+                ? onlineUsers.map((u) => u.fullName).join(', ')
+                : 'Connecting to room...'}
+            </span>
+          </div>
         </div>
 
         <div className="flex items-center gap-2">

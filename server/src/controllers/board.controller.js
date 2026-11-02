@@ -1,4 +1,5 @@
 import { prisma } from '../lib/prisma.js';
+import { emitToTenant } from '../socket.js';
 
 // -------------------------------------------------------------
 // 1. Get all boards for the active tenant
@@ -118,6 +119,9 @@ export const createBoard = async (req, res) => {
       return board;
     });
 
+    // Real-Time Socket.IO Broadcast
+    emitToTenant(tenantId, 'board:created', { board: newBoard, actorId: req.user.id });
+
     return res.status(201).json({ message: 'Board created successfully', board: newBoard });
   } catch (error) {
     console.error('Error creating board:', error);
@@ -150,6 +154,9 @@ export const updateBoard = async (req, res) => {
       },
     });
 
+    // Real-Time Socket.IO Broadcast
+    emitToTenant(tenantId, 'board:updated', { board: updated, actorId: req.user.id });
+
     return res.status(200).json({ message: 'Board updated successfully', board: updated });
   } catch (error) {
     console.error('Error updating board:', error);
@@ -176,6 +183,9 @@ export const deleteBoard = async (req, res) => {
     await prisma.board.delete({
       where: { id: boardId },
     });
+
+    // Real-Time Socket.IO Broadcast
+    emitToTenant(tenantId, 'board:deleted', { boardId, actorId: req.user.id });
 
     return res.status(200).json({ message: 'Board deleted successfully' });
   } catch (error) {

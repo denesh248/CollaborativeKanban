@@ -1,8 +1,12 @@
 import http from 'http';
 import app from './app.js';
 import { config } from './config/environment.js';
+import { initSocket } from './socket.js';
 
 const server = http.createServer(app);
+
+// Initialize Socket.IO gateway
+initSocket(server);
 
 server.listen(config.PORT, () => {
   console.log(`🚀 Collaborative Kanban Server running on http://localhost:${config.PORT}`);

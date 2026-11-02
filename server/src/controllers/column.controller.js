@@ -1,4 +1,5 @@
 import { prisma } from '../lib/prisma.js';
+import { emitToTenant } from '../socket.js';
 
 // -------------------------------------------------------------
 // 1. Create a column in a board
@@ -41,6 +42,9 @@ export const createColumn = async (req, res) => {
       },
     });
 
+    // Real-Time Socket.IO Broadcast
+    emitToTenant(tenantId, 'column:created', { column, actorId: req.user.id });
+
     return res.status(201).json({ message: 'Column created successfully', column });
   } catch (error) {
     console.error('Error creating column:', error);
@@ -74,6 +78,9 @@ export const updateColumn = async (req, res) => {
       },
     });
 
+    // Real-Time Socket.IO Broadcast
+    emitToTenant(tenantId, 'column:updated', { column: updated, actorId: req.user.id });
+
     return res.status(200).json({ message: 'Column updated successfully', column: updated });
   } catch (error) {
     console.error('Error updating column:', error);
@@ -100,6 +107,9 @@ export const deleteColumn = async (req, res) => {
     await prisma.column.delete({
       where: { id: columnId },
     });
+
+    // Real-Time Socket.IO Broadcast
+    emitToTenant(tenantId, 'column:deleted', { columnId, actorId: req.user.id });
 
     return res.status(200).json({ message: 'Column deleted successfully' });
   } catch (error) {
