@@ -1,20 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  KanbanSquare,
-  Plus,
-  ArrowRight,
-  Trash2,
-  Edit2,
-  Clock,
-  User,
-  Shield,
-  Activity,
-  AlertCircle,
-  CheckCircle2,
-  Layers,
-  RefreshCw,
-  GripVertical,
-} from 'lucide-react';
 
 import {
   DndContext,
@@ -46,9 +30,7 @@ import {
   getBranchMembersApi,
 } from '../services/api.js';
 
-// -------------------------------------------------------------
 // Helper: Calculate new integer position between neighboring tasks
-// -------------------------------------------------------------
 const calculateNewPosition = (tasks, targetIndex) => {
   if (!tasks || tasks.length <= 1) {
     return 1000;
@@ -66,46 +48,34 @@ const calculateNewPosition = (tasks, targetIndex) => {
   return Math.round((prevPos + nextPos) / 2);
 };
 
-// -------------------------------------------------------------
-// Component: Visual Card Body (shared by SortableCard & DragOverlay)
-// -------------------------------------------------------------
-function TaskCardContent({
-  task,
-  isOverlay = false,
-  onEdit,
-  onDelete,
-  onQuickMove,
-  columns = [],
-}) {
+// Component: Task Card Content (Used by both SortableCard and DragOverlay)
+function TaskCardView({ task, isOverlay = false, onEdit, onDelete, onQuickMove, columns = [] }) {
   return (
     <div
-      className={`space-y-3 ${
+      className={`space-y-2.5 ${
         isOverlay
-          ? 'bg-white rounded-xl border-2 border-indigo-500 p-4 shadow-2xl rotate-2 cursor-grabbing'
+          ? 'bg-white rounded-xl border-2 border-indigo-600 p-3.5 shadow-2xl rotate-1 cursor-grabbing'
           : ''
       }`}
     >
-      {/* Priority & Version Badges */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
-          <GripVertical className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-          <span
-            className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-              task.priority === 'URGENT'
-                ? 'bg-red-100 text-red-700'
-                : task.priority === 'HIGH'
-                ? 'bg-amber-100 text-amber-700'
-                : task.priority === 'LOW'
-                ? 'bg-slate-100 text-slate-600'
-                : 'bg-blue-100 text-blue-700'
-            }`}
-          >
-            {task.priority}
-          </span>
-        </div>
+      {/* Priority and OCC Version */}
+      <div className="flex items-center justify-between text-xs">
+        <span
+          className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+            task.priority === 'URGENT'
+              ? 'bg-red-100 text-red-800'
+              : task.priority === 'HIGH'
+              ? 'bg-amber-100 text-amber-800'
+              : task.priority === 'LOW'
+              ? 'bg-slate-100 text-slate-700'
+              : 'bg-blue-100 text-blue-800'
+          }`}
+        >
+          {task.priority}
+        </span>
 
         <span
-          className="text-[10px] font-mono text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200"
+          className="text-[10px] font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200"
           title="OCC Concurrency Version Counter"
         >
           v{task.version}
@@ -124,46 +94,38 @@ function TaskCardContent({
 
       {/* Card Footer: Assignee & Action Buttons */}
       <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
-        <div className="flex items-center gap-1.5 text-slate-600">
-          <User className="w-3.5 h-3.5 text-slate-400" />
-          <span className="text-[11px] font-medium truncate max-w-[90px]">
-            {task.assignee?.fullName || 'Unassigned'}
-          </span>
+        <div className="text-slate-600 text-[11px] font-medium truncate max-w-[120px]">
+          {task.assignee?.fullName ? task.assignee.fullName : 'Unassigned'}
         </div>
 
         {!isOverlay && (
-          <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+          <div className="flex items-center gap-1">
             <button
               onPointerDown={(e) => e.stopPropagation()}
               onClick={() => onEdit?.(task)}
-              className="p-1 hover:bg-slate-100 text-slate-500 rounded cursor-pointer"
-              title="Edit Task"
+              className="px-1.5 py-0.5 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded cursor-pointer"
             >
-              <Edit2 className="w-3.5 h-3.5" />
+              Edit
             </button>
             <button
               onPointerDown={(e) => e.stopPropagation()}
               onClick={() => onDelete?.(task.id)}
-              className="p-1 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded cursor-pointer"
-              title="Delete Task"
+              className="px-1.5 py-0.5 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 rounded cursor-pointer"
             >
-              <Trash2 className="w-3.5 h-3.5" />
+              Delete
             </button>
           </div>
         )}
       </div>
 
-      {/* Quick Move Dropdown (Fallback for accessibility) */}
+      {/* Quick Move Dropdown (Accessible Fallback) */}
       {!isOverlay && columns.length > 0 && (
-        <div
-          className="pt-1 flex items-center gap-1.5"
-          onPointerDown={(e) => e.stopPropagation()}
-        >
+        <div className="pt-1 flex items-center gap-1.5" onPointerDown={(e) => e.stopPropagation()}>
           <span className="text-[10px] text-slate-400">Move:</span>
           <select
             value={task.columnId}
             onChange={(e) => onQuickMove?.(task, e.target.value)}
-            className="w-full text-[11px] bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5 text-slate-700 focus:outline-none cursor-pointer"
+            className="w-full text-[11px] bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5 text-slate-700 cursor-pointer"
           >
             {columns.map((c) => (
               <option key={c.id} value={c.id}>
@@ -177,23 +139,16 @@ function TaskCardContent({
   );
 }
 
-// -------------------------------------------------------------
 // Component: Sortable Task Card
-// -------------------------------------------------------------
 function SortableTaskCard({ task, onEdit, onDelete, onQuickMove, columns }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: task.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: task.id,
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.25 : 1,
+    opacity: isDragging ? 0.3 : 1,
   };
 
   return (
@@ -202,13 +157,11 @@ function SortableTaskCard({ task, onEdit, onDelete, onQuickMove, columns }) {
       style={style}
       {...attributes}
       {...listeners}
-      className={`bg-white rounded-xl border p-4 shadow-xs hover:shadow-md transition-all space-y-3 group cursor-grab active:cursor-grabbing select-none ${
-        isDragging
-          ? 'border-dashed border-indigo-400 bg-indigo-50/20'
-          : 'border-slate-200'
+      className={`bg-white rounded-xl border p-3.5 shadow-xs transition-all cursor-grab active:cursor-grabbing select-none ${
+        isDragging ? 'border-dashed border-indigo-400 bg-indigo-50/20' : 'border-slate-200'
       }`}
     >
-      <TaskCardContent
+      <TaskCardView
         task={task}
         isOverlay={false}
         onEdit={onEdit}
@@ -220,9 +173,7 @@ function SortableTaskCard({ task, onEdit, onDelete, onQuickMove, columns }) {
   );
 }
 
-// -------------------------------------------------------------
 // Component: Droppable Column Container
-// -------------------------------------------------------------
 function DroppableColumn({
   column,
   columns,
@@ -238,25 +189,25 @@ function DroppableColumn({
       ref={setNodeRef}
       className={`rounded-2xl border p-4 flex flex-col max-h-[750px] transition-colors ${
         isOver
-          ? 'ring-2 ring-indigo-500 bg-indigo-50/60 border-indigo-300'
+          ? 'ring-2 ring-indigo-500 bg-indigo-50/50 border-indigo-300'
           : 'bg-slate-100/80 border-slate-200/80'
       }`}
     >
-      {/* Column Title */}
+      {/* Column Header */}
       <div className="flex items-center justify-between mb-3 px-1">
         <div className="flex items-center gap-2">
           <h3 className="font-bold text-slate-800 text-sm tracking-tight">{column.name}</h3>
-          <span className="w-5 h-5 rounded-full bg-white text-slate-600 text-[11px] font-bold flex items-center justify-center shadow-2xs">
+          <span className="w-5 h-5 rounded-full bg-white text-slate-600 text-[11px] font-bold flex items-center justify-center shadow-xs">
             {column.tasks?.length || 0}
           </span>
         </div>
 
         <button
           onClick={() => onOpenNewTask(column.id)}
-          className="p-1 rounded-md hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+          className="text-xs px-2 py-0.5 rounded bg-white hover:bg-slate-200 text-slate-700 font-semibold cursor-pointer border border-slate-200"
           title={`Add task to ${column.name}`}
         >
-          <Plus className="w-4 h-4" />
+          + Add
         </button>
       </div>
 
@@ -288,9 +239,7 @@ function DroppableColumn({
   );
 }
 
-// -------------------------------------------------------------
 // Main Component: KanbanBoard
-// -------------------------------------------------------------
 export default function KanbanBoard({ tenant, token, user }) {
   const [boards, setBoards] = useState([]);
   const [activeBoard, setActiveBoard] = useState(null);
@@ -304,7 +253,7 @@ export default function KanbanBoard({ tenant, token, user }) {
   const [activeDragTask, setActiveDragTask] = useState(null);
   const dragStartRef = useRef(null);
 
-  // Modal states
+  // Modal states: Create Task
   const [isNewTaskOpen, setIsNewTaskOpen] = useState(false);
   const [newTaskColumnId, setNewTaskColumnId] = useState('');
   const [newTaskTitle, setNewTaskTitle] = useState('');
@@ -312,26 +261,19 @@ export default function KanbanBoard({ tenant, token, user }) {
   const [newTaskPriority, setNewTaskPriority] = useState('MEDIUM');
   const [newTaskAssigneeId, setNewTaskAssigneeId] = useState('');
 
-  // Edit Task modal
+  // Modal states: Edit Task
   const [editingTask, setEditingTask] = useState(null);
   const [editTitle, setEditTitle] = useState('');
   const [editDesc, setEditDesc] = useState('');
   const [editPriority, setEditPriority] = useState('MEDIUM');
   const [editAssigneeId, setEditAssigneeId] = useState('');
 
-  // Configure DnD Sensors (PointerSensor with 5px distance prevents accidental drag on click)
+  // DnD Sensors: 5px distance prevents accidental drag when clicking buttons
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 5,
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  // Load board data whenever active tenant changes
   useEffect(() => {
     if (tenant?.id && token) {
       loadTenantData();
@@ -344,7 +286,6 @@ export default function KanbanBoard({ tenant, token, user }) {
     setConflictError(null);
 
     try {
-      // 1. Fetch boards in this tenant
       const boardList = await getBoardsApi(tenant.id, token);
       setBoards(boardList);
 
@@ -355,7 +296,6 @@ export default function KanbanBoard({ tenant, token, user }) {
         setActiveBoard(null);
       }
 
-      // 2. Fetch branch members and activity logs
       const [membersData, logsData] = await Promise.all([
         getBranchMembersApi(tenant.id, token),
         getActivityLogsApi(tenant.id, token),
@@ -369,9 +309,7 @@ export default function KanbanBoard({ tenant, token, user }) {
     }
   };
 
-  // -------------------------------------------------------------
   // Drag and Drop Handlers
-  // -------------------------------------------------------------
   const handleDragStart = (event) => {
     const { active } = event;
     if (!activeBoard?.columns) return;
@@ -397,25 +335,17 @@ export default function KanbanBoard({ tenant, token, user }) {
 
     const activeId = active.id;
     const overId = over.id;
-
     if (activeId === overId) return;
 
-    // Find source column
-    const sourceCol = activeBoard.columns.find((c) =>
-      c.tasks?.some((t) => t.id === activeId)
-    );
+    const sourceCol = activeBoard.columns.find((c) => c.tasks?.some((t) => t.id === activeId));
     if (!sourceCol) return;
 
-    // Destination column can be the column container itself or a task inside it
     let destCol = activeBoard.columns.find((c) => c.id === overId);
     if (!destCol) {
-      destCol = activeBoard.columns.find((c) =>
-        c.tasks?.some((t) => t.id === overId)
-      );
+      destCol = activeBoard.columns.find((c) => c.tasks?.some((t) => t.id === overId));
     }
     if (!destCol) return;
 
-    // Moving across different columns
     if (sourceCol.id !== destCol.id) {
       setActiveBoard((prev) => {
         const activeTask = sourceCol.tasks.find((t) => t.id === activeId);
@@ -435,23 +365,16 @@ export default function KanbanBoard({ tenant, token, user }) {
           ...prev,
           columns: prev.columns.map((col) => {
             if (col.id === sourceCol.id) {
-              return {
-                ...col,
-                tasks: col.tasks.filter((t) => t.id !== activeId),
-              };
+              return { ...col, tasks: col.tasks.filter((t) => t.id !== activeId) };
             }
             if (col.id === destCol.id) {
-              return {
-                ...col,
-                tasks: newDestTasks,
-              };
+              return { ...col, tasks: newDestTasks };
             }
             return col;
           }),
         };
       });
     } else {
-      // Reordering within the SAME column
       const oldIndex = sourceCol.tasks.findIndex((t) => t.id === activeId);
       const newIndex = sourceCol.tasks.findIndex((t) => t.id === overId);
 
@@ -481,17 +404,12 @@ export default function KanbanBoard({ tenant, token, user }) {
     const activeId = active.id;
     const overId = over.id;
 
-    // Find final destination column
     let destCol = activeBoard.columns.find((col) => col.id === overId);
     if (!destCol) {
-      destCol = activeBoard.columns.find((col) =>
-        col.tasks?.some((t) => t.id === overId)
-      );
+      destCol = activeBoard.columns.find((col) => col.tasks?.some((t) => t.id === overId));
     }
     if (!destCol) {
-      destCol = activeBoard.columns.find((col) =>
-        col.tasks?.some((t) => t.id === activeId)
-      );
+      destCol = activeBoard.columns.find((col) => col.tasks?.some((t) => t.id === activeId));
     }
     if (!destCol) return;
 
@@ -502,15 +420,12 @@ export default function KanbanBoard({ tenant, token, user }) {
     const task = targetTasks[taskIndex];
     const original = dragStartRef.current;
 
-    // Calculate new position
     const newPosition = calculateNewPosition(targetTasks, taskIndex);
-
-    // Verify whether column or position changed
     const columnChanged = original && original.columnId !== destCol.id;
     const positionChanged = original && Math.abs(original.position - newPosition) > 1;
 
     if (!columnChanged && !positionChanged) {
-      return; // No real change, avoid unnecessary network call
+      return;
     }
 
     setConflictError(null);
@@ -527,23 +442,19 @@ export default function KanbanBoard({ tenant, token, user }) {
         token
       );
 
-      // Update state with newly returned server version and position
       setActiveBoard((prev) => ({
         ...prev,
         columns: prev.columns.map((col) => {
           if (col.id === destCol.id) {
             return {
               ...col,
-              tasks: col.tasks.map((t) =>
-                t.id === task.id ? { ...t, ...movedTask } : t
-              ),
+              tasks: col.tasks.map((t) => (t.id === task.id ? { ...t, ...movedTask } : t)),
             };
           }
           return col;
         }),
       }));
 
-      // Refresh activity logs to immediately display the move audit
       const logs = await getActivityLogsApi(tenant.id, token);
       setActivityLogs(logs);
     } catch (err) {
@@ -555,14 +466,10 @@ export default function KanbanBoard({ tenant, token, user }) {
       } else {
         setError(err.message || 'Failed to persist task movement');
       }
-      // Re-synchronize board data with authoritative database state
       await loadTenantData();
     }
   };
 
-  // -------------------------------------------------------------
-  // Quick Move Fallback Handler (Dropdown)
-  // -------------------------------------------------------------
   const handleQuickMoveTask = async (task, destColumnId) => {
     if (task.columnId === destColumnId) return;
     setConflictError(null);
@@ -578,7 +485,6 @@ export default function KanbanBoard({ tenant, token, user }) {
         },
         token
       );
-
       await loadTenantData();
     } catch (err) {
       if (err.status === 409) {
@@ -593,9 +499,6 @@ export default function KanbanBoard({ tenant, token, user }) {
     }
   };
 
-  // -------------------------------------------------------------
-  // Create Task Handler
-  // -------------------------------------------------------------
   const handleCreateTask = async (e) => {
     e.preventDefault();
     if (!newTaskTitle.trim() || !newTaskColumnId) return;
@@ -623,9 +526,6 @@ export default function KanbanBoard({ tenant, token, user }) {
     }
   };
 
-  // -------------------------------------------------------------
-  // Edit Task Handler
-  // -------------------------------------------------------------
   const openEditModal = (task) => {
     setEditingTask(task);
     setEditTitle(task.title);
@@ -668,9 +568,6 @@ export default function KanbanBoard({ tenant, token, user }) {
     }
   };
 
-  // -------------------------------------------------------------
-  // Delete Task Handler
-  // -------------------------------------------------------------
   const handleDeleteTask = async (taskId) => {
     if (!confirm('Are you sure you want to delete this task?')) return;
     try {
@@ -683,8 +580,7 @@ export default function KanbanBoard({ tenant, token, user }) {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[350px] space-y-3">
-        <RefreshCw className="w-8 h-8 text-indigo-600 animate-spin" />
+      <div className="flex flex-col items-center justify-center min-h-[350px] space-y-2">
         <p className="text-slate-500 text-sm">Loading branch Kanban board...</p>
       </div>
     );
@@ -692,14 +588,14 @@ export default function KanbanBoard({ tenant, token, user }) {
 
   return (
     <div className="space-y-6">
-      {/* Board Top Header */}
+      {/* Board Header Bar */}
       <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold text-slate-900">
+            <h2 className="text-lg font-bold text-slate-900">
               {activeBoard?.name || 'No Boards Found'}
             </h2>
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium">
+            <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 font-medium">
               {tenant.name}
             </span>
           </div>
@@ -711,11 +607,9 @@ export default function KanbanBoard({ tenant, token, user }) {
         <div className="flex items-center gap-2">
           <button
             onClick={() => loadTenantData()}
-            className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
-            title="Refresh Board"
+            className="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-medium cursor-pointer"
           >
-            <RefreshCw className="w-4 h-4" />
-            <span className="hidden sm:inline">Refresh</span>
+            Refresh
           </button>
 
           {activeBoard?.columns?.length > 0 && (
@@ -724,37 +618,32 @@ export default function KanbanBoard({ tenant, token, user }) {
                 setNewTaskColumnId(activeBoard.columns[0].id);
                 setIsNewTaskOpen(true);
               }}
-              className="px-3.5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium flex items-center gap-1.5 transition-colors shadow-sm cursor-pointer"
+              className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium cursor-pointer shadow-sm"
             >
-              <Plus className="w-4 h-4" />
-              <span>New Task</span>
+              + New Task
             </button>
           )}
         </div>
       </div>
 
-      {/* Error & Conflict Banners */}
+      {/* Error & OCC Conflict Alerts */}
       {error && (
-        <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2.5">
-          <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-          <span>{error}</span>
+        <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs">
+          <strong>Error: </strong> {error}
         </div>
       )}
 
       {conflictError && (
-        <div className="p-4 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-          <div>
-            <div className="font-semibold text-sm">Optimistic Concurrency Control (OCC) Alert</div>
-            <div className="mt-0.5">{conflictError.message}</div>
-            <div className="mt-1 font-mono text-[11px] bg-white/70 p-1.5 rounded border border-amber-200">
-              Database state was protected from silent overwrite. Latest version has been synced.
-            </div>
+        <div className="p-4 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs space-y-1">
+          <div className="font-bold text-sm">Optimistic Concurrency Control (OCC) Alert</div>
+          <div>{conflictError.message}</div>
+          <div className="font-mono text-[11px] bg-white/70 p-1.5 rounded border border-amber-200">
+            Database state protected from overwrite. Latest version has been synced.
           </div>
         </div>
       )}
 
-      {/* Interactive Drag-and-Drop Kanban Columns Grid */}
+      {/* Interactive Drag-and-Drop Kanban Columns */}
       {activeBoard?.columns ? (
         <DndContext
           sensors={sensors}
@@ -783,7 +672,7 @@ export default function KanbanBoard({ tenant, token, user }) {
           {/* Floating Drag Overlay */}
           <DragOverlay>
             {activeDragTask ? (
-              <TaskCardContent
+              <TaskCardView
                 task={activeDragTask}
                 isOverlay={true}
                 columns={activeBoard.columns}
@@ -797,19 +686,16 @@ export default function KanbanBoard({ tenant, token, user }) {
         </div>
       )}
 
-      {/* Live Activity Log Stream (Audit Trail) */}
+      {/* Live Activity Audit Trail */}
       <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Activity className="w-4 h-4 text-indigo-600" />
-            <h3 className="font-bold text-slate-900 text-sm">Tenant Activity Audit Trail</h3>
-          </div>
+          <h3 className="font-bold text-slate-900 text-sm">Tenant Activity Audit Trail</h3>
           <span className="text-[11px] text-slate-500 font-mono">
             {activityLogs.length} Events Recorded
           </span>
         </div>
 
-        <div className="space-y-2.5 max-h-[220px] overflow-y-auto text-xs">
+        <div className="space-y-2 max-h-[220px] overflow-y-auto text-xs">
           {activityLogs.length > 0 ? (
             activityLogs.map((log) => (
               <div
@@ -856,7 +742,7 @@ export default function KanbanBoard({ tenant, token, user }) {
       {isNewTaskOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200">
-            <h3 className="font-bold text-slate-900 text-base mb-4">Create New Task Card</h3>
+            <h3 className="font-bold text-slate-900 text-base mb-4">Create New Task</h3>
             <form onSubmit={handleCreateTask} className="space-y-3 text-xs">
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">Title</label>
@@ -954,7 +840,7 @@ export default function KanbanBoard({ tenant, token, user }) {
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-slate-900 text-base">Edit Task</h3>
-              <span className="text-[11px] font-mono text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
+              <span className="text-[11px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
                 Version: v{editingTask.version}
               </span>
             </div>
