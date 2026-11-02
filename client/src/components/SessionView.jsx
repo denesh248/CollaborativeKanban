@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import KanbanBoard from './KanbanBoard.jsx';
+import KanbanBoard from './kanban/KanbanBoard.jsx';
 
 export default function SessionView({ user, token }) {
   // Default to the first authorized branch
