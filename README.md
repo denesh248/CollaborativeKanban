@@ -189,13 +189,13 @@ Frontend will start on: `http://localhost:5173`
   - Express server with health check endpoint (`/api/health`)
   - Prisma schema with all 8 models, foreign keys, and indexes
   - Comprehensive seed script with 5 accounts across 3 branches
-  - React + Vite + Tailwind CSS frontend layout with interactive credentials helper
-- [ ] **Phase 2: Authentication, Tenant Scoping & RBAC** (Next)
-  - User registration & login with JWT
-  - Password verification with bcryptjs
-  - Tenant context middleware (`requireTenantContext`)
-  - RBAC permission guards (`requireRole`)
-- [ ] **Phase 3: REST API Endpoints**
+- [x] **Phase 2: Authentication, Tenant Scoping & RBAC** (Completed)
+  - User login & profile retrieval with JWT and bcryptjs
+  - Clean `auth.middleware.js` verifying Bearer tokens and attaching `req.user.id`
+  - Strict `tenant.middleware.js` validating branch membership and organization boundaries
+  - Flexible `role.middleware.js` enforcing `ORG_ADMIN`, `TENANT_ADMIN`, and `MEMBER` permissions
+  - Connected frontend login page with active branch switcher and live security verification
+- [ ] **Phase 3: REST API Endpoints** (Next)
   - CRUD for Organizations, Tenants, Boards, Columns, and Tasks
   - Concurrency checks (`HTTP 409 Conflict`)
 - [ ] **Phase 4: Real-Time Communication (Socket.IO)**
@@ -207,3 +207,17 @@ Frontend will start on: `http://localhost:5173`
   - Optimistic UI updates with undo/redo
 - [ ] **Phase 6: Conflict Resolution & Network Reconnection**
 - [ ] **Phase 7: Packaging & Final Deliverables**
+
+---
+
+## 8. Implemented API Endpoints (Phase 2)
+
+| Method | Endpoint | Protection | Description |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/health` | Public | Server uptime and health status |
+| `POST` | `/api/auth/login` | Public | Authenticates user; returns JWT token, accessible orgs, branches, and roles |
+| `POST` | `/api/auth/register` | Public | Registers a new user with standard `MEMBER` role |
+| `GET` | `/api/auth/me` | Bearer JWT | Returns current user profile, assigned branches, and permissions |
+| `GET` | `/api/tenants/:tenantId/verify` | Bearer JWT + Tenant Guard | Verifies user membership in the specified branch (returns 403 if unauthorized) |
+| `GET` | `/api/tenants/:tenantId/admin-check` | Bearer JWT + Tenant Guard + RBAC | Verifies user has `ORG_ADMIN` or `TENANT_ADMIN` role in the branch |
+

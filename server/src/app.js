@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { config } from './config/environment.js';
+import { CLIENT_ORIGIN } from './config/environment.js';
 import apiRoutes from './routes/index.js';
 import { errorHandler } from './middleware/error.middleware.js';
 
@@ -9,7 +9,7 @@ const app = express();
 // Middlewares
 app.use(
   cors({
-    origin: config.CLIENT_ORIGIN,
+    origin: CLIENT_ORIGIN,
     credentials: true,
   })
 );
@@ -24,6 +24,14 @@ app.get('/', (_req, res) => {
     version: '1.0.0',
     endpoints: {
       health: '/api/health',
+      auth: {
+        login: 'POST /api/auth/login',
+        register: 'POST /api/auth/register',
+        me: 'GET /api/auth/me',
+      },
+      tenants: {
+        verify: 'GET /api/tenants/:tenantId/verify',
+      },
     },
   });
 });

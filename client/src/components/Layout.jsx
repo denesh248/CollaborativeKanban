@@ -1,7 +1,7 @@
 import React from 'react';
-import { KanbanSquare, Building2, GitBranch, Users, Activity, ShieldCheck, LogIn } from 'lucide-react';
+import { KanbanSquare, Building2, GitBranch, Users, ShieldCheck, LogIn, LogOut, User as UserIcon } from 'lucide-react';
 
-export default function Layout({ children, activeTab, setActiveTab }) {
+export default function Layout({ children, activeTab, setActiveTab, user, onLogout }) {
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800">
       {/* Top Navigation Bar */}
@@ -23,42 +23,45 @@ export default function Layout({ children, activeTab, setActiveTab }) {
             </div>
           </div>
 
-          {/* Scope Preview: Organization & Branch Selectors (Mock preview for Phase 1) */}
-          <div className="hidden md:flex items-center gap-3 bg-slate-100 p-1 rounded-lg border border-slate-200">
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded bg-white shadow-xs text-xs font-medium text-slate-700">
-              <Building2 className="w-3.5 h-3.5 text-indigo-600" />
-              <span>ABC Technologies</span>
+          {/* Scope Preview: Organization & Branch Indicator */}
+          {user && (
+            <div className="hidden md:flex items-center gap-3 bg-slate-100 p-1 rounded-lg border border-slate-200">
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded bg-white shadow-xs text-xs font-medium text-slate-700">
+                <Building2 className="w-3.5 h-3.5 text-indigo-600" />
+                <span>{user.organizations?.[0]?.name || 'ABC Technologies'}</span>
+              </div>
+              <span className="text-slate-300">/</span>
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded bg-white shadow-xs text-xs font-medium text-slate-700">
+                <GitBranch className="w-3.5 h-3.5 text-emerald-600" />
+                <span>{user.tenants?.[0]?.name || 'Branches'}</span>
+              </div>
             </div>
-            <span className="text-slate-300">/</span>
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded bg-white shadow-xs text-xs font-medium text-slate-700">
-              <GitBranch className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Hyderabad Branch</span>
-            </div>
-          </div>
+          )}
 
-          {/* Header Action Badges */}
+          {/* Header Action Badges & Navigation */}
           <div className="flex items-center gap-3">
-            {/* Live Presence Badge Placeholder */}
+            {/* Status Badge */}
             <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-medium">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span>Backend Ready</span>
+              <span>{user ? 'Authenticated' : 'Phase 2 Ready'}</span>
             </div>
 
             {/* Navigation Tabs */}
             <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
               <button
-                onClick={() => setActiveTab('login')}
+                onClick={() => setActiveTab('app')}
                 className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                  activeTab === 'login'
+                  activeTab === 'app'
                     ? 'bg-white text-indigo-600 shadow-sm'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 <span className="flex items-center gap-1.5">
-                  <LogIn className="w-3.5 h-3.5" />
-                  Sign In
+                  {user ? <UserIcon className="w-3.5 h-3.5" /> : <LogIn className="w-3.5 h-3.5" />}
+                  {user ? 'My Session' : 'Sign In'}
                 </span>
               </button>
+
               <button
                 onClick={() => setActiveTab('overview')}
                 className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
@@ -69,7 +72,7 @@ export default function Layout({ children, activeTab, setActiveTab }) {
               >
                 <span className="flex items-center gap-1.5">
                   <ShieldCheck className="w-3.5 h-3.5" />
-                  Phase 1 Overview
+                  System Overview
                 </span>
               </button>
             </div>
@@ -86,7 +89,7 @@ export default function Layout({ children, activeTab, setActiveTab }) {
       <footer className="bg-white border-t border-slate-200 py-4 mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2">
           <span>Real-Time Collaborative Kanban • FDE Intern Assignment</span>
-          <span className="font-mono text-slate-400">Phase 1: Project Foundation & Database Setup</span>
+          <span className="font-mono text-slate-400">Phase 2: Authentication, Tenant Scoping & RBAC</span>
         </div>
       </footer>
     </div>
