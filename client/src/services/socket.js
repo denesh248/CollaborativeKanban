@@ -23,10 +23,13 @@ export const connectSocket = (token) => {
   const SOCKET_URL =
     import.meta.env.VITE_SOCKET_URL || window.location.origin;
 
-  socket = io(socketUrl, {
+
+  socket = io(SOCKET_URL, {
     auth: { token: `Bearer ${token}` },
     transports: ['websocket', 'polling'],
-
+    reconnection: true,
+    reconnectionAttempts: 10,
+    reconnectionDelay: 1000,
   });
 
   return socket;
