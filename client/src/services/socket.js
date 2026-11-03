@@ -9,12 +9,10 @@ let currentToken = null;
 export const getSocket = () => socket;
 
 export const connectSocket = (token) => {
-  // If already connected with the same token, reuse existing socket
   if (socket && socket.connected && currentToken === token) {
     return socket;
   }
 
-  // If token changed or socket disconnected, reset
   if (socket) {
     socket.disconnect();
     socket = null;
@@ -22,10 +20,8 @@ export const connectSocket = (token) => {
 
   currentToken = token;
 
-  const socketUrl =
-    import.meta.env.VITE_SOCKET_URL ||
-    import.meta.env.VITE_API_URL?.replace(/\/api\/?$/, '') ||
-    'http://localhost:5000';
+  const SOCKET_URL =
+    import.meta.env.VITE_SOCKET_URL || window.location.origin;
 
   socket = io(socketUrl, {
     auth: { token: `Bearer ${token}` },

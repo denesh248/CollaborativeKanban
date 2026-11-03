@@ -1,9 +1,7 @@
-// client/src/services/api.js
-// Clean and straightforward API client for the Kanban application
 
-const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/$/, '');
 
-// Helper function to handle fetch calls, JSON parsing, and OCC 409 errors
+const API_BASE = import.meta.env.VITE_API_URL || "/api";
+
 async function request(path, options = {}, token = null) {
   const headers = {
     'Content-Type': 'application/json',
@@ -21,7 +19,6 @@ async function request(path, options = {}, token = null) {
 
   const data = await res.json().catch(() => ({}));
 
-  // Handle Optimistic Concurrency Control (OCC) conflict
   if (res.status === 409) {
     const error = new Error(data.message || 'Concurrent modification conflict');
     error.status = 409;
