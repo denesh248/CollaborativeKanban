@@ -26,9 +26,7 @@ export const connectSocket = (token) => {
   socket = io(socketUrl, {
     auth: { token: `Bearer ${token}` },
     transports: ['websocket', 'polling'],
-    reconnection: true,
-    reconnectionAttempts: 10,
-    reconnectionDelay: 1000,
+
   });
 
   return socket;
